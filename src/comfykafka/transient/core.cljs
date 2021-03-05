@@ -19,7 +19,7 @@
              on-keypress
              go-back-key
              nil state)
-            {go-back-key #(swap! state pop)})))
+            {go-back-key #(swap! state update :history pop)})))
   ([keymap on-keypress go-back-key
     parent-keymap-id state]
    (let [[key keymap-id & sub-keymaps] keymap
