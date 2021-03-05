@@ -1,0 +1,18 @@
+#+TITLE: Brain Dump
+
+* Questions
+** Should actions only take input from the result of actions of a parent keybind?
+*** Imagine scenario where you connect then you select the topics after connecting
+- This could work if after connecting, you stay in that state.
+- The post-connection state is what's passed on to the further actions (i.e. to the topics actions)
+- NOPE WON'T WORK BECAUSE THE UPPER LAYERS (e.g. the connection) NEED TO BE ACCESSED BY LOWER LAYERS (e.g. partitions, for when you want to subscribe: connection is needed)
+* Notes
+- Instead of Magit where there's only 1 main buffer, it should be configurable. For example, be able to see Connection, Topics and Partitions at the same time
+  + Although, only 1 buffer is considered "main", the others are read-only
+- State transitions can be via user input or some sync/async task finishing from the previous state. A state's input can either be those 2
+- The shape of a state node:
+ #+begin_src clojure
+     {:user {:command "keyword"
+             :params "list of [key value]"}
+      :prevous-state "struct"}
+ #+end_src
