@@ -9,18 +9,18 @@
 ; specific to your application.
 
 (rf/reg-event-db
-  :init
-  (fn [db [_ opts terminal-size]]
-    {:opts opts
-     :router/view :loader
-     :terminal/size terminal-size}))
+ :init
+ (fn [db [_ opts terminal-size]]
+   {:opts opts
+    :router/view :home
+    :terminal/size terminal-size}))
 
 (rf/reg-event-db
-  :update
-  (fn [db [_ data]]
-    (merge db data)))
+ :update
+ (fn [db [_ data]]
+   (merge db data)))
 
 (rf/reg-event-db
-  :set
-  (fn [db [_ data]]
-    data))
+ :set
+ (fn [db [_ data]]
+   data))

@@ -138,11 +138,7 @@
   - Navigates to home page when completed.
   Returns hiccup :box vector."
   [_]
-  (r/with-let [progress (r/atom 0)
-               interval (js/setInterval #(swap! progress inc) 15)]
-    (when (>= @progress 100)
-      (js/clearInterval interval)
-      (rf/dispatch [:update {:router/view :home}]))
+  (r/with-let [progress (r/atom 0)]
     [:box#loader
      {:top 0
       :width "100%"}
@@ -183,16 +179,11 @@
   Typically something like a hiccup [:box ...] vector
 
   Returns hiccup :box vector."
-  [{:keys [view]} child]
+  [child]
   [:box#base {:left   0
               :right  0
               :width  "100%"
               :height "100%"}
-   (when (not= view :loader) [navbar])
-   [router {:views {:loader loader
-                    :home home
-                    :about about
-                    :resources resources
-                    :credits credits}
-            :view view}]
-   child])
+   [test-component]
+   ;; child
+   ])

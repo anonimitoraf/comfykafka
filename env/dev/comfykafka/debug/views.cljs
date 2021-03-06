@@ -36,10 +36,12 @@
     :bottom       0
     :right        0
     :width        "50%"
-    :style        {:fg :yellow}
+    :style        {:fg :yellow
+                   :scrollbar {:bg :white}}
     :scrollable   true
     :scrollbar    true
-    :alwaysScroll true}
+    :alwaysScroll true
+    :mouse        true}
    [:text {:left    1
            :top     0
            :bottom  0

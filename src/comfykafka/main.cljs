@@ -18,8 +18,7 @@
   Takes no arguments.
   Returns hiccup demo element to run the demo app."
   [_]
-  (let [view @(rf/subscribe [:view])]
-    [demo {:view view}]))
+  [demo])
 
 (def cli-options
   [["-p" "--port PORT" "port number"

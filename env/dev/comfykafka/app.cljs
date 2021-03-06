@@ -13,9 +13,7 @@
   [_]
   (let [view @(rf/subscribe [:view])
         rows (:rows @(rf/subscribe [:size]))]
-    [demo
-     {:view view}
-     [debug/debug-box rows]]))
+    [demo [debug/debug-box rows]]))
 
 (defn main!
   "Main development entrypoint.

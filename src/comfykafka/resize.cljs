@@ -12,5 +12,5 @@
   [screen]
   (.on screen "resize"
        (fn handle-resize
-          [_]
-          (rf/dispatch [:update {:terminal/size (size screen)}]))))
+         [_]
+         (rf/dispatch [:update {:terminal/size (size screen)}]))))
