@@ -14,3 +14,5 @@ pom.xml
 pom.xml.asc
 profiles.clj
 /.lsp
+/.clj-kondo/*
+!/.clj-kondo/config.edn
