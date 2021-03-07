@@ -1,6 +1,5 @@
 (ns comfykafka.transient.core
   (:require [clojure.string :refer [join]]
-            [cljs.pprint :refer [pprint]]
             [reagent.core :as r]
             [comfykafka.keys :refer [with-keys]]
             [comfykafka.core :refer [screen]]
