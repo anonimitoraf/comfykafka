@@ -47,8 +47,6 @@
                               ;;  [key id desc & sub-keymaps]
                               ;; We want to get the keymap ID
                               (-> @state :history first second))
-                       (tap> {:parent parent-keymap-id})
-                       (tap> {:state @state})
                        (on-navigate [keymap :forward])
                        ;; This generates a list, not a vector
                        ;; So, history is "stack"
@@ -64,7 +62,6 @@
                                 k/workflow-keymap
                                 k/go-back-key
                                 (fn [[selected-keymap _]]
-                                  ;; (tap> selected-keymap)
                                   (swap! state assoc :selected selected-keymap)))
                keymap (merge keymap-misc keymap-workflow)]
     (with-keys @screen keymap
