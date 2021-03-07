@@ -1,10 +1,20 @@
 (ns comfykafka.transient.core
   (:require [clojure.string :refer [join]]
+            [cljs.core.async :refer [go]]
+            [cljs.core.async.interop :refer-macros [<p!]]
             [reagent.core :as r]
             [comfykafka.keys :refer [with-keys]]
             [comfykafka.core :refer [screen]]
             [comfykafka.transient.keys :as k]
             [comfykafka.transient.actions]))
+
+(defn- handle-maybe-promise
+  "Awaits `maybe-promise` then executes `thunk-after`"
+  [maybe-promise thunk-after]
+  (go (when (.-then maybe-promise) (<p! maybe-promise))
+      ;; Easiest way to test if awaiting works
+      (tap> "After (maybe) waiting for maybe-promise")
+      (thunk-after)))
 
 (defn process-keymap
   "
@@ -12,8 +22,9 @@
 
     * keymap - See (TODO: Link namespace when it's finalized).
     * on-navigate - Function invoked for navigating forward or backward.
-                    Takes 1 arg, which is the keymap and the direction
+                    Takes 1 arg, which is the keymap and the direction:
                       [keymap navigation-direction]
+                    Can be an async fn.
     * go-back-key - key for going back to the previous keymap.
   "
   ([keymap go-back-key on-navigate]
@@ -26,8 +37,9 @@
             ;; Get the second item in history because the first is the current keymap
             {go-back-key #(let [go-back-to (-> @state :history second)]
                             (when go-back-to
-                              (on-navigate [go-back-to :backward])
-                              (swap! state update :history pop)))})))
+                              (handle-maybe-promise
+                               (on-navigate [go-back-to :backward])
+                               (fn [] (swap! state update :history pop)))))})))
   ([keymap go-back-key on-navigate
     parent-keymap-id state]
    (let [[key id _ & sub-keymaps] keymap
@@ -40,17 +52,21 @@
                                                         state))
                                       sub-keymaps))]
      (reduce #(merge-with  comp %1 %2)
-             {key #(do
-                     (when (= parent-keymap-id
-                              ;; History is a list of keymaps which look like:
-                              ;;  [key id desc & sub-keymaps]
-                              ;; We want to get the keymap ID
-                              (-> @state :history first second))
-                       (on-navigate [keymap :forward])
-                       ;; This generates a list, not a vector
-                       ;; So, history is "stack"
-                       (swap! state update :history conj keymap)))}
+             {key #(when (= parent-keymap-id
+                       ;; History is a list of keymaps which look like:
+                       ;;  [key id desc & sub-keymaps]
+                       ;; We want to get the keymap ID
+                            (-> @state :history first second))
+                     (handle-maybe-promise
+                      (on-navigate [keymap :forward])
+                      ;; This generates a list, not a vector
+                      ;; So, history is "stack"
+                      (fn [] (swap! state update :history conj keymap))))}
              processed-sub-keymaps))))
+
+(defn sleep [ms]
+  (new js/Promise (fn [resolve]
+                    (js/setTimeout resolve ms))))
 
 (defn test-component
   [debug-ui]
@@ -60,8 +76,16 @@
                keymap-workflow (process-keymap
                                 k/workflow-keymap
                                 k/go-back-key
-                                (fn [[selected-keymap _]]
-                                  (swap! state assoc :selected selected-keymap)))
+                                (fn [[selected-keymap direction]]
+                                  (condp = direction
+                                    :forward (new js/Promise
+                                                  (fn [resolve]
+                                                    (go
+                                                      (<p! (sleep 1000))
+                                                      (swap! state assoc :selected selected-keymap)
+                                                      (resolve))))
+                                    :backward (swap! state assoc :selected selected-keymap)
+                                    (throw (js/Error (str "Unexpected direction: " direction))))))
                keymap (merge keymap-misc keymap-workflow)]
     (with-keys @screen keymap
       [:box {:top 0
