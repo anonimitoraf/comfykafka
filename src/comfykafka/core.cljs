@@ -19,10 +19,10 @@
   https://github.com/chjj/blessed#screen-from-node"
   :start
   (doto
-    (.screen blessed
-             #js {:autoPadding true
-                  :smartCSR true
-                  :title "comfykafka"})
+   (.screen blessed
+            #js {:autoPadding true
+                 :smartCSR true
+                 :title "comfykafka"})
     resize/setup
     keys/setup))
 
