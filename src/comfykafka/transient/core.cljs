@@ -55,13 +55,6 @@
                        (swap! state update :history conj keymap)))}
              processed-sub-keymaps))))
 
-;; (def keymap
-;;   ["a" :a
-;;    ["b" :b
-;;     ["a" :a2]]])
-
-;; (def dbg_processed (process-keymap keymap print "g"))
-
 (defn test-component
   [debug-ui]
   (r/with-let [state (r/atom {})
