@@ -22,10 +22,10 @@
    ["n" :connection/create "New"
     ["s" :connection/save "Save"]]
    ["e" :connection/edit "Edit"
-    ["1" :connection/edit-url "Edit URL"]
+    ["l" :connection/edit-url "URL"]
+    ["u" :connection/edit-username "username"]
+    ["p" :connection/edit-password "password"]
     ["s" :connection/save "Save"]]
    ["d" :connection/delete "Delete"
     ["y" :connection/delete-confirm "Yes, delete"]
     ["n" :connection/delete-cancel "Cancel"]]])
-
-(def go-back-key "g")

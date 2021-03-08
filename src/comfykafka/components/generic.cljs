@@ -1,6 +1,7 @@
 (ns comfykafka.components.generic
   (:require [reagent.core :as r]
-            [comfykafka.theme :as theme]))
+            [comfykafka.theme :as theme])
+  (:require-macros [comfykafka.components.generic]))
 
 ;; (defn text-box
 ;;   []
@@ -79,9 +80,9 @@
                :left "10%"
                :width "80%"
                :border {:type :line}
-               :style {:border {:fg :white}}
+               :style {:border {:fg theme/text-box-container-border}}
                :label (str " " heading " ")
-               :ref (fn [ref]
+               :ref (fn [^js ref]
                       (when (and ref (not @focused?))
                         (reset! focused? true)
                         (.focus ref)
