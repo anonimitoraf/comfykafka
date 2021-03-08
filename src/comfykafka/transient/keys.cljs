@@ -22,6 +22,7 @@
    ["n" :connection/create "New"
     ["s" :connection/save "Save"]]
    ["e" :connection/edit "Edit"
+    ["1" :connection/edit-url "Edit URL"]
     ["s" :connection/save "Save"]]
    ["d" :connection/delete "Delete"
     ["y" :connection/delete-confirm "Yes, delete"]

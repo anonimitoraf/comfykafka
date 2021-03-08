@@ -5,6 +5,7 @@
    [re-frame.core :as rf]
    [reagent.core :as r]
    [comfykafka.views :refer [router vertical-menu]]
+   [comfykafka.components.connections :as c]
    [comfykafka.transient.core :refer [test-component]]))
 
 (defn navbar
@@ -180,9 +181,10 @@
 
   Returns hiccup :box vector."
   [child]
-  [:box#base {:left   0
-              :right  0
-              :width  "100%"
-              :height "100%"}
-   [test-component
-    child]])
+  [:box#base {:top 0
+              :height "100%"
+              :left 0
+              :width "100%"
+              :border {:type :line}
+              :style {:border {:fg :white}}}
+   [test-component child]])

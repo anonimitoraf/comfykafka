@@ -5,6 +5,7 @@
             [reagent.core :as r]
             [comfykafka.keys :refer [with-keys]]
             [comfykafka.core :refer [screen]]
+            [comfykafka.components.connections :as c]
             [comfykafka.transient.keys :as k]
             [comfykafka.transient.actions]))
 
@@ -70,7 +71,7 @@
 
 (defn test-component
   [debug-ui]
-  (r/with-let [state (r/atom {})
+  (r/with-let [state (r/atom {:show-keymap-helper? true})
                keymap-misc {["?"] #(swap! state update :show-keymap-helper? not)
                             ["!"] #(swap! state update :show-debug-ui? not)}
                keymap-workflow (process-keymap
@@ -78,22 +79,16 @@
                                 k/go-back-key
                                 (fn [[selected-keymap direction]]
                                   (condp = direction
-                                    :forward (new js/Promise
-                                                  (fn [resolve]
-                                                    (go
-                                                      (<p! (sleep 1000))
-                                                      (swap! state assoc :selected selected-keymap)
-                                                      (resolve))))
+                                    :forward (swap! state assoc :selected selected-keymap)
                                     :backward (swap! state assoc :selected selected-keymap)
                                     (throw (js/Error (str "Unexpected direction: " direction))))))
-               keymap (merge keymap-misc keymap-workflow)]
+               keymap (merge keymap-misc keymap-workflow)
+               selected-keymap-id #(-> @state :selected second)]
     (with-keys @screen keymap
-      [:box {:top 0
-             :height "100%"
-             :left 0
-             :width "100%"
-             :border {:type :line}
-             :style {:border {:fg :white}}}
+      [:<>
+       [c/configurator
+        {:url "my-url.com"}
+        {:url (= (selected-keymap-id) :connection/edit-url)}]
        ;; HACK: Hiding of component is via moving it well outside the viewport
        [:box {:top (if (:show-keymap-helper? @state) "75%" "1000%")
               :height "30%"
