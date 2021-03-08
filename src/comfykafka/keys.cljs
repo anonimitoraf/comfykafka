@@ -11,7 +11,7 @@
   Takes a blessed screen and a map of keybindings.
   Returns nil.
   See global-bindings for example input."
-  [screen key-bindings]
+  [^js screen key-bindings]
   (doseq [[hotkeys f] key-bindings]
     (.key screen (clj->js hotkeys) f)))
 
@@ -19,7 +19,7 @@
   "Remove key bindings from blessed screen instance.
   Takes a blessed screen instance and a map of keybindings.
   Returns nil."
-  [screen key-bindings]
+  [^js screen key-bindings]
   (doseq [[hotkeys f] key-bindings]
     (.unkey screen (clj->js hotkeys) f)))
 
@@ -27,7 +27,7 @@
   "Bind global-bindings to blssed screen instance.
   Takes blessed screen instance.
   Returns nil."
-  [screen]
+  [^js screen]
   (bind-keys screen global-bindings))
 
 (defn with-keys
@@ -44,7 +44,7 @@
   Example:
   (with-keys screen {[\"q\" \"esc\"] #(rf/dispatch [:app/quit])}
     [:box \"Quit me.\"])"
-  [screen key-bindings content]
+  [^js screen key-bindings content]
   (r/with-let [_ (bind-keys screen key-bindings)]
     content
     (finally
