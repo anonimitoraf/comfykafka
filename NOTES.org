@@ -1,0 +1,5 @@
+#+TITLE: Notes
+
+* Component "Types" Needed [1/2]
+- [X] Single line prompt
+- [ ] Searchable Lists
