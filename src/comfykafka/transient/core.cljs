@@ -106,9 +106,9 @@
                    :width "100%"}
         ;; Listing connections
         (when (within-keymap-history? :connections/view)
-          [connections/selector (merge {:top 0 :height "100%" :left 0 :width "25%"}
-                                       (when (current-keymap? :connections/view)
-                                         {:style {:border {:fg theme/default-container-border-focused}}}))
+          [connections/selector
+           {:top 0 :height "100%" :left 0 :width "25%"}
+           {:focused? (current-keymap? :connections/view)}
            [{:id 1
              :name "prod cluster"
              :url "kafka-cluster.prod"}
@@ -117,9 +117,9 @@
              :url "kafka-cluster.qa"}]])
         ;; Editing connection/s
         (when (within-keymap-history? :connection/edit)
-          [connections/configurator (merge {:top 0 :height "100%" :left "25%" :width "25%"}
-                                           (when (current-keymap? :connection/edit)
-                                             {:style {:border {:fg theme/default-container-border-focused}}}))
+          [connections/configurator
+           {:top 0 :height "100%" :left "25%" :width "25%"}
+           {:focused? (current-keymap? :connection/edit)}
            {:url      "my-url.com"
             :username "bob"
             :password "builder123"}

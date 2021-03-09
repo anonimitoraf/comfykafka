@@ -1,6 +1,6 @@
 (ns comfykafka.components.connections
-  (:require [comfykafka.theme :as theme]
-            [comfykafka.components.generic :refer [single-field-prompt
+  (:require [comfykafka.components.generic :refer [box
+                                                   single-field-prompt
                                                    seq->components]]))
 
 (defn configurator
@@ -26,13 +26,8 @@
                ... }}
   ```
   "
-  [props config prompts prompt-cbs]
-  [:box (merge {:border {:type :line}
-                :style {:border {:fg theme/default-container-border}}
-                :padding theme/default-container-padding
-                :label " Connection "
-                :focused true}
-               props)
+  [position {:keys [focused?] :as opts} config prompts prompt-cbs]
+  [box " Connection " position opts
    (seq->components config
                     (fn [idx [k v]] ; e.g. k = :url, v = "kafka-cluster.com"
                       [:box {:top (* idx 2) ; Essentially gives a </br>
@@ -60,17 +55,9 @@
    :username'abc'
    :password '123'}
   ```
-  * opts
-  Example
-  ```
-  {:focused? true}
-  ```
   "
-  [props connections]
-  [:box (merge {:border {:type :line}
-                :style {:border {:fg theme/default-container-border}}
-                :label " Connections "}
-               props)
+  [position {:keys [focused?] :as opts} connections]
+  [box " Connections " position opts
    [:list {:keys true
            :items (map :name connections)
            :style {:selected {:fg :green}}
