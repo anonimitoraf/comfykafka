@@ -1,5 +1,5 @@
 (ns comfykafka.components.connections
-  (:require [reagent.core :as r]
+  (:require [comfykafka.theme :as theme]
             [comfykafka.components.generic :refer [single-field-prompt
                                                    seq->components]]))
 
@@ -26,13 +26,13 @@
                ... }}
   ```
   "
-  [config prompts prompt-cbs]
-  [:box {:top 0
-         :height "75%"
-         :left 0
-         :width "100%-2"
-         :border {:type :line}
-         :style {:border {:fg :yellow}}}
+  [props config prompts prompt-cbs]
+  [:box (merge {:border {:type :line}
+                :style {:border {:fg theme/default-container-border}}
+                :padding theme/default-container-padding
+                :label " Connection "
+                :focused true}
+               props)
    (seq->components config
                     (fn [idx [k v]] ; e.g. k = :url, v = "kafka-cluster.com"
                       [:box {:top (* idx 2) ; Essentially gives a </br>
@@ -48,3 +48,34 @@
                                                     :initial-value (get config k)
                                                     :on-submit (get-in prompt-cbs [:on-submit k])
                                                     :on-cancel (get-in prompt-cbs [:on-cancel k])}])))])
+
+(defn selector
+  "
+  * connections - a list of connection structs.
+  Example of a connection:
+  ```
+  {:name 'prod cluster'
+   :id uuid
+   :url 'kafka-cluster.com'
+   :username'abc'
+   :password '123'}
+  ```
+  * opts
+  Example
+  ```
+  {:focused? true}
+  ```
+  "
+  [props connections]
+  [:box (merge {:border {:type :line}
+                :style {:border {:fg theme/default-container-border}}
+                :label " Connections "}
+               props)
+   [:list {:keys true
+           :items (map :name connections)
+           :style {:selected {:fg :green}}
+           :focused true
+           :on-select (fn [selected]
+                        (tap> (->> connections
+                                   (filter #(= (:name %) (.-content selected)))
+                                   (first))))}]])

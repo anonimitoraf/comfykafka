@@ -184,7 +184,5 @@
   [:box#base {:top 0
               :height "100%"
               :left 0
-              :width "100%"
-              :border {:type :line}
-              :style {:border {:fg :white}}}
+              :width "100%"}
    [test-component child]])
