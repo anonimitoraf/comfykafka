@@ -3,3 +3,8 @@
 * Component "Types" Needed [1/2]
 - [X] Single line prompt
 - [ ] Searchable Lists
+
+* Things to do [0/2]
+- [ ] Show top-level keybindings
+- [ ] Abstractions [0/2]
+  + [ ] Box-focusing/unfocusing
