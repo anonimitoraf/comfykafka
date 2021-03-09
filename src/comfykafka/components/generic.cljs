@@ -90,3 +90,15 @@
                :inputOnFocus true
                :onSubmit on-submit
                :onCancel on-cancel}]))
+
+(defn plain-box
+  "A plain box for debugging purposes. Imagine a `div` with some text on it"
+  [content]
+  [:box {:top "25%"
+         :height "50%"
+         :left "25%"
+         :width "50%"
+         :border {:type :line}
+         :style {:border {:fg :red}}
+         :label " SOME PLAIN BOX "
+         :content content}])
