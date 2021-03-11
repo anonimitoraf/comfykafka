@@ -3,11 +3,11 @@
             [cljs.core.async :refer [go]]
             [cljs.core.async.interop :refer-macros [<p!]]
             [reagent.core :as r]
+            [re-frame.core :as rf]
             [comfykafka.keys :refer [with-keys]]
             [comfykafka.core :refer [screen]]
-            [comfykafka.theme :as theme]
-            [comfykafka.components.generic :refer [plain-box]]
-            [comfykafka.components.connections :as connections]
+            [comfykafka.flows.connection :as cfc]
+            [comfykafka.components.connections :as ccc]
             [comfykafka.transient.keys :as k]
             [comfykafka.transient.actions]))
 
@@ -106,23 +106,17 @@
                    :width "100%"}
         ;; Listing connections
         (when (within-keymap-history? :connections/view)
-          [connections/selector
+          [ccc/selector
            {:top 0 :height "100%" :left 0 :width "25%"}
            {:focused? (current-keymap? :connections/view)}
-           [{:id 1
-             :name "prod cluster"
-             :url "kafka-cluster.prod"}
-            {:id 2
-             :name "qa cluster"
-             :url "kafka-cluster.qa"}]])
+           @(rf/subscribe [::cfc/registry])
+           #(rf/dispatch [::cfc/select %])])
         ;; Editing connection/s
         (when (within-keymap-history? :connection/edit)
-          [connections/configurator
+          [ccc/configurator
            {:top 0 :height "100%" :left "25%" :width "25%"}
            {:focused? (current-keymap? :connection/edit)}
-           {:url      "my-url.com"
-            :username "bob"
-            :password "builder123"}
+           @(rf/subscribe [::cfc/selected])
            {:url      (current-keymap? :connection/edit-url)
             :username (current-keymap? :connection/edit-username)
             :password (current-keymap? :connection/edit-password)}

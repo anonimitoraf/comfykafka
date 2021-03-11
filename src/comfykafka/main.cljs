@@ -9,6 +9,7 @@
    [comfykafka.core :refer [render screen]]
    [comfykafka.demo.views :refer [demo]]
    [comfykafka.events]
+   [comfykafka.flows.connection]
    [comfykafka.resize :refer [size]]
    [comfykafka.subs]
    [comfykafka.views :as views]))

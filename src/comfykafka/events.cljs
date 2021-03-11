@@ -13,7 +13,11 @@
  (fn [db [_ opts terminal-size]]
    {:opts opts
     :router/view :home
-    :terminal/size terminal-size}))
+    :terminal/size terminal-size
+    :connection/registry [{:connection/name "prod cluster"
+                           :connection/url "kafka-cluster.prod"}
+                          {:connection/name "qa cluster"
+                           :connection/url "kafka-cluster.qa"}]}))
 
 (rf/reg-event-db
  :update
