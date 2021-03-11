@@ -31,7 +31,7 @@
   [position {:keys [focused?] :as opts} config prompts prompt-cbs]
   [box " Connection " position opts
    (if (nil? config)
-     "No connection selected"
+     [:text "No connection selected"]
      [:<>
       (seq->components config
                        (fn [idx [k v]] ; e.g. k = :url, v = "kafka-cluster.com"
@@ -66,6 +66,7 @@
   [box " Connections " position opts
    [:list {:keys true
            :items (map :connection/name connections)
+           ;; FIXME The first item gets highlighted despite not being selected
            :style {:selected {:fg :green}}
            :focused true
            ;; TODO Restrict duplicate IDs
