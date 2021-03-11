@@ -1,5 +1,6 @@
 (ns comfykafka.components.connections
-  (:require [comfykafka.components.generic :refer [box
+  (:require [comfykafka.theme :as theme]
+            [comfykafka.components.generic :refer [box
                                                    single-field-prompt
                                                    seq->components]]))
 
@@ -63,12 +64,18 @@
   * on-select - callback with 1 arg: the selected connection's name.
   "
   [position {:keys [focused?] :as opts} connections on-select]
-  [box " Connections " position opts
+  (tap> (str "selector focused" focused?))
+  [:box (merge {:label " Connections "
+                :border {:type :line}
+                :style {:border {:fg (if focused?
+                                       theme/default-container-border-focused
+                                       theme/default-container-border)}}}
+               position)
    [:list {:keys true
            :items (map :connection/name connections)
            ;; FIXME The first item gets highlighted despite not being selected
            :style {:selected {:fg :green}}
-           :focused true
+           :focused focused?
            ;; TODO Restrict duplicate IDs
            :on-select (fn [selected-id]
                         ;; (tap> (.-content selected-id))

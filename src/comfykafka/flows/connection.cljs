@@ -16,8 +16,8 @@
  ::save
  (fn [db [_ connection]]
    (assoc-in db [:connection/registry
-                 (:connection/name connection)
-                 connection])))
+                 (:connection/name connection)]
+             connection)))
 
 ;; ______________________________ Subs ______________________________
 

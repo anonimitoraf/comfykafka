@@ -32,6 +32,7 @@
                 :style {:border {:fg (if focused?
                                        theme/default-container-border-focused
                                        theme/default-container-border)}}
+                :focused focused?
                 :label (str " " label " ")}
                position)
    (map #(with-meta % {:key (gensym "key-")}) content)])
