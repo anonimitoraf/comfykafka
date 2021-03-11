@@ -107,14 +107,14 @@
         ;; Listing connections
         (when (within-keymap-history? :connections/view)
           [ccc/selector
-           {:top 0 :height "100%" :left 0 :width "25%"}
+           {:top 0 :height "100%" :left 0 :width "10%"}
            {:focused? (current-keymap? :connections/view)}
            @(rf/subscribe [::cfc/registry])
            #(rf/dispatch [::cfc/select %])])
         ;; Editing connection/s
-        (when (within-keymap-history? :connection/edit)
+        (when (current-keymap? :connections/view)
           [ccc/configurator
-           {:top 0 :height "100%" :left "25%" :width "25%"}
+           {:top 0 :height "100%" :left "10%" :width "30%"}
            {:focused? (current-keymap? :connection/edit)}
            @(rf/subscribe [::cfc/selected])
            {:url      (current-keymap? :connection/edit-url)
