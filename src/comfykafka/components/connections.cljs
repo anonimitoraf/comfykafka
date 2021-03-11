@@ -30,7 +30,7 @@
   ```
   "
   [position {:keys [focused?] :as opts} config prompts prompt-cbs]
-  [box " Connection " position opts
+  [box nil position opts
    (if (nil? config)
      [:text "No connection selected"]
      [:<>
@@ -64,7 +64,6 @@
   * on-select - callback with 1 arg: the selected connection's name.
   "
   [position {:keys [focused?] :as opts} connections on-select]
-  (tap> (str "selector focused" focused?))
   [:box (merge {:label " Connections "
                 :border {:type :line}
                 :style {:border {:fg (if focused?
