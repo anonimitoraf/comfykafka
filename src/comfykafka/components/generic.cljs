@@ -32,9 +32,9 @@
                 :style {:border {:fg (if focused?
                                        theme/default-container-border-focused
                                        theme/default-container-border)}}
-                :focused focused?
-                :label (str " " label " ")}
-               position)
+                :focused focused?}
+               position
+               (when label {:label label}))
    (map #(with-meta % {:key (gensym "key-")}) content)])
 
 (defn plain-box
