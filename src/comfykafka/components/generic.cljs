@@ -29,10 +29,10 @@
   "Wrapper around the Box component which reduces repetition"
   [label position {:keys [focused?] :as opts} & content]
   [:box (merge {:border {:type :line}
-                :style {:border {:fg (if focused?
+                :style {:border {:fg (if (focused?)
                                        theme/default-container-border-focused
                                        theme/default-container-border)}}
-                :focused focused?}
+                :focused (focused?)}
                position
                (when label {:label label}))
    (map #(with-meta % {:key (gensym "key-")}) content)])
@@ -48,3 +48,8 @@
          :style {:border {:fg :red}}
          :label " SOME PLAIN BOX "
          :content content}])
+
+(defn with-color
+  "Generates a colored string via blessed tags"
+  [color text]
+  (str "{" (name color) "-fg}" text))

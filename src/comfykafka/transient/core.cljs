@@ -104,18 +104,19 @@
                    :height "75%"
                    :left 0
                    :width "100%"}
-        ;; Listing connections
+        ;; Box for listing/choosing a connection
         (when (within-keymap-history? :connections/view)
           [ccc/selector
            {:top 0 :height "100%" :left 0 :width "10%"}
-           {:focused? (current-keymap? :connections/view)}
+           {:focused? #(current-keymap? :connections/view)}
            @(rf/subscribe [::cfc/registry])
+           @(rf/subscribe [::cfc/selected-name])
            #(rf/dispatch [::cfc/select %])])
-        ;; Editing connection/s
-        (when (current-keymap? :connections/view)
+        ;; Box for configuring a connection
+        (when (within-keymap-history? :connections/view)
           [ccc/configurator
            {:top 0 :height "100%" :left "10%" :width "30%"}
-           {:focused? (current-keymap? :connection/edit)}
+           {:focused? #(current-keymap? :connection/edit)}
            @(rf/subscribe [::cfc/selected])
            {:url      (current-keymap? :connection/edit-url)
             :username (current-keymap? :connection/edit-username)

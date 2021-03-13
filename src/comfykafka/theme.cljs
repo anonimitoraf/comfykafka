@@ -1,5 +1,7 @@
 (ns comfykafka.theme)
 
+(def default-text {:fg :white})
+
 (def keymap-helper-container :cyan)
 (def keymap-helper-key :cyan)
 (def keymap-helper-desc :white)
@@ -10,3 +12,6 @@
                                 :top 1})
 
 (def text-box-container-border :green)
+
+(def list-item-selected {:fg :green})
+(def list-item-unselected default-text)
