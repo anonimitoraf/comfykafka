@@ -1,5 +1,6 @@
 (ns comfykafka.flows.connection
   (:require [re-frame.core :as rf]
+            [comfykafka.wrappers.persistent-db :as persistent-db]
             [comfykafka.utils :refer [find-first]]))
 
 (rf/reg-event-db

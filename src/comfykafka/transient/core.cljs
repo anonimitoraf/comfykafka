@@ -1,6 +1,6 @@
 (ns comfykafka.transient.core
   (:require [clojure.string :refer [join]]
-            [cljs.core.async :refer [go]]
+            [cljs.core.async :refer [go go-loop chan >! <! timeout]]
             [cljs.core.async.interop :refer-macros [<p!]]
             [reagent.core :as r]
             [re-frame.core :as rf]
@@ -11,56 +11,75 @@
             [comfykafka.transient.keys :as k]
             [comfykafka.transient.actions]))
 
-(defn- handle-maybe-promise
-  "Awaits `maybe-promise` then executes `thunk-after`"
-  [maybe-promise thunk-after]
-  (go (when (.-then maybe-promise) (<p! maybe-promise))
-      ;; Easiest way to test if awaiting works
-      ;; (tap> "After (maybe) waiting for maybe-promise")
-      (thunk-after)))
+(defn ^:private gen-nav-seq [] (gensym "nav-seq:"))
 
-(defn- process-keymap-inner
-  [keymap on-navigate parent-keymap-id history]
+(defn ^:private process-keymap-inner
+  "Generates a blessed-keymap"
+  [keymap ingress egress parent-keymap-id history]
   (let [[key id _ & sub-keymaps] keymap
         processed-sub-keymaps (when (not-empty sub-keymaps)
                                 (map (fn [sub-keymap] (process-keymap-inner sub-keymap
-                                                                            on-navigate
+                                                                            ingress egress
                                                                             id history))
                                      sub-keymaps))]
-    (reduce #(merge-with  comp %1 %2)
+    (reduce #(merge-with comp %1 %2)
             {key #(when (= parent-keymap-id
                            ;; History is a list of keymaps which look like:
                            ;;  [key id desc & sub-keymapsngs]
                            ;; We want to get the keymap ID
                            (-> @history first second))
-                    (handle-maybe-promise
-                     (on-navigate [keymap :forward])
-                     ;; This generates a list, not a vector
-                     ;; So, history is "stack"
-                     (fn [] (swap! history conj keymap))))}
+                    ;; Make sure only the initial keypress is valid
+                    ;; for a given navigation seq
+                    (let [awaited-id (r/atom nil)]
+                      ;; Emit keymap events
+                      (go
+                        (let [nav-id (gen-nav-seq)]
+                          ;; Start navigation seq
+                          (>! egress {:type :nav-forward-start
+                                      :id nav-id
+                                      :value [keymap :forward]})
+                          (reset! awaited-id nav-id)))
+                      ;; Capture keymap events
+                      (go
+                        (let [{:keys [type id] :as event} (<! ingress)]
+                          (print "Received ingress event:" event)
+                          (condp = type
+                            ;; Wait for the consumer to end the nagivation seq
+                            :nav-forward-end (do
+                                               ;; "Block" until the awaited ID arrives
+                                               (when (not= id @awaited-id)
+                                                 (throw (js/Error (str "Unexpected ingress event ID: " id))))
+                                               ;; This generates a list, not a vector
+                                               ;; So, history is "stack"
+                                               (swap! history conj keymap)
+                                               ;; Allow keypresses again
+                                               (reset! awaited-id nil))
+                            :nav-backward-start (swap! history pop)
+                            (throw (js/Error (str "Unexpected ingress event type: " type))))))))}
             processed-sub-keymaps)))
 
 (defn process-keymap
   "
   Generates `blessed` keybindings given a `keymap`
     * keymap - See (TODO: Link namespace when it's finalized).
-    * on-navigate - Function invoked for navigating forward or backward.
-                    Takes 1 arg, which is the keymap and the direction:
-                      [keymap navigation-direction]
-                    Can be an async fn that returns a JS Promise.
+    * ingress - Channel for accepting keymap event requests.
+                Primarily for navigation (with dependence to async logic).
   Returns:
   ```
   {:keymap  - `blessed` keybindings
+   :ingress - Channel for receiving keymap events.
+   :egress - Channel for emitting keymap events.
    :within-keymap-history? - Fn with 1 arg: `keymap-d`.
                              Returns `true` if `keymap-id` is within navigation history
    :current-keymap? - Fn with with 1 arg: `keymap-d`.
                       Returns `true` if `keymap-id` is the currently selected
-   :go-back - Fn that, when called, navigates backwards}
   ```
   "
-  [keymap on-navigate]
-  (let [history (atom nil)]
-    {:keymap (process-keymap-inner keymap on-navigate nil history)
+  [keymap]
+  (let [history (atom nil)
+        ingress (chan)
+        egress (chan)]
+    {:keymap (process-keymap-inner keymap ingress egress nil history)
      :within-keymap-history? (fn [keymap-id]
                                (->> @history
                                     (map second)
@@ -71,13 +90,20 @@
                              first
                              second
                              (= keymap-id)))
-     :go-back
-     ;; Get the second item in history because the first is the current keymap
-     #(let [go-back-to (-> @history second)]
-        (when go-back-to
-          (handle-maybe-promise
-           (on-navigate [go-back-to :backward])
-           (fn [] (swap! history pop)))))}))
+     :ingress ingress
+     :egress egress}))
+
+(defn process-keymap-events
+  [ingress egress after-egress]
+  (go-loop []
+    (let [{:keys [type id] :as event} (<! egress)]
+      (<! (timeout 1000))
+      (print "Received egress event:" {:type type :id id})
+      (after-egress event)
+      (condp = type
+        :nav-forward-start (>! ingress {:type :nav-forward-end
+                                        :id id})))
+    (recur)))
 
 (defn test-component
   [debug-ui]
@@ -85,19 +111,17 @@
                {:keys [keymap
                        within-keymap-history?
                        current-keymap?
-                       go-back]} (process-keymap
-                                  k/workflow-keymap
-                                  (fn [[selected-keymap direction]]
-                                    (condp = direction
-                                      :forward (swap! state assoc :selected selected-keymap)
-                                      :backward (swap! state assoc :selected selected-keymap)
-                                      (throw (js/Error (str "Unexpected direction: " direction))))
-                                    ;; HACK A way to aide cancellation of prompts
-                                    ;; (avoids an extra key-press: just "g" instead of "escape g")
-                                    (swap! state assoc :inhibit-prompts? false)))
+                       ingress egress]} (process-keymap k/workflow-keymap)
+               go-back #(go (>! ingress {:type :nav-backward-start
+                                         :id (gen-nav-seq)}))
                meta-keymap {["?"] #(swap! state update :show-keymap-helper? not)
                             ["!"] #(swap! state update :show-debug-ui? not)
                             ["g"] go-back}]
+    (process-keymap-events
+     ingress
+     egress (fn [{:keys [value]}]
+              (let [[keymap _direction] value]
+                (swap! state assoc :selected keymap))))
     (with-keys @screen (merge meta-keymap keymap)
       [:<>
        [:box#main {:top 0
@@ -111,7 +135,8 @@
            {:focused? #(current-keymap? :connections/view)}
            @(rf/subscribe [::cfc/registry])
            @(rf/subscribe [::cfc/selected-name])
-           #(rf/dispatch [::cfc/select %])])
+           (fn [connection-name]
+             (rf/dispatch [::cfc/select connection-name]))])
         ;; Box for configuring a connection
         (when (within-keymap-history? :connections/view)
           [ccc/configurator

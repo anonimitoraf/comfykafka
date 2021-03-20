@@ -1,5 +1,10 @@
 #+TITLE: Notes
 
+* Keymap event types
+- :nav-forward-start
+- :nav-forward-end
+- :nav-backward-start
+
 * Component "Types" Needed [1/2]
 - [X] Single line prompt
 - [ ] Searchable Lists
