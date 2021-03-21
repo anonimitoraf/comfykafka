@@ -16,9 +16,7 @@
 ;;  :id}
 ;;
 ;; backward navigation start
-;; {:type :nav|<-
-;;  :hotkey
-;;  :id}
+;; {:type :nav<-|}
 
 ;; A keymap is comprised of:
 ;; [hotkey id desc & sub-keymaps]
@@ -29,10 +27,15 @@
        (filter pred)
        first))
 
+(defn ^:private try-pop
+  "Like pop but does not throw an error if coll is empty."
+  [coll]
+  (if (empty? coll) coll (pop coll)))
+
 (defn process-events
   "Given a keymap, process events run against the keymap"
-  [root-keymap events]
-  (let [states (atom [{:current root-keymap}])
+  [keymap events]
+  (let [states (atom [{:current keymap}])
         states-channel (chan)
         temp (atom {})]
     (add-watch states :changes (fn [_ _ _ new-state]
@@ -58,8 +61,8 @@
                       (swap! states conj {:previous current-keymap
                                           :current new-keymap})
                       (swap! temp dissoc :pending-nav-id))))
-        ;; :nav|<- (do (swap! states pop)
-        ;;             (swap! temp dissoc :pending-nav-id))
+        :nav<-| (do (swap! states try-pop)
+                    (swap! temp dissoc :pending-nav-id))
         (throw (js/Error (str "Unexpected event type: " type)))))
     @states))
 
@@ -78,6 +81,7 @@
    {:type :nav->| :hotkey "c" :id 1}
    {:type :nav|-> :hotkey "e" :id 3}
    {:type :nav|-> :hotkey "e" :id 4} ;; This should get ignored
-   {:type :nav->| :hotkey "e" :id 3}])
+   {:type :nav->| :hotkey "e" :id 3}
+   {:type :nav<-|}])
 
 (def dbg_processed (process-events keymap events))
