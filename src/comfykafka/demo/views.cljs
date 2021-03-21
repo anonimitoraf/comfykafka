@@ -6,6 +6,7 @@
    [reagent.core :as r]
    [comfykafka.views :refer [router vertical-menu]]
    [comfykafka.components.connections :as c]
+   [comfykafka.transient.core-2]
    [comfykafka.transient.core :refer [test-component]]))
 
 (defn navbar
