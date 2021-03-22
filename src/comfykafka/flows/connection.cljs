@@ -1,7 +1,7 @@
 (ns comfykafka.flows.connection
   (:require [re-frame.core :as rf]
             [comfykafka.wrappers.persistent-db :as persistent-db]
-            [comfykafka.utils :refer [find-first]]))
+            [comfykafka.utils :refer [filter-first]]))
 
 (rf/reg-event-db
  ::add
@@ -38,4 +38,4 @@
    [(rf/subscribe [::registry])
     (rf/subscribe [::selected-name])])
  (fn [[registry connection-name]]
-   (find-first registry #(= (:connection/name %) connection-name))))
+   (filter-first registry #(= (:connection/name %) connection-name))))

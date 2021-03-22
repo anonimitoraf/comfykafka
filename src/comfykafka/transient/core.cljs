@@ -1,9 +1,11 @@
 (ns comfykafka.transient.core
   (:require [clojure.string :refer [join]]
-            [cljs.core.async :refer [go go-loop chan >! <! timeout]]
-            [cljs.core.async.interop :refer-macros [<p!]]
+            [cljs.core.async
+             :refer [chan >! <! timeout]
+             :refer-macros [go go-loop]]
             [reagent.core :as r]
             [re-frame.core :as rf]
+            [comfykafka.utils :refer [filter-first try-pop]]
             [comfykafka.keys :refer [with-keys]]
             [comfykafka.core :refer [screen]]
             [comfykafka.flows.connection :as cfc]
@@ -11,145 +13,159 @@
             [comfykafka.transient.keys :as k]
             [comfykafka.transient.actions]))
 
-(defn ^:private gen-nav-seq [] (gensym "nav-seq:"))
-
-(defn ^:private process-keymap-inner
-  "Generates a blessed-keymap"
-  [keymap ingress egress parent-keymap-id history]
-  (let [[key id _ & sub-keymaps] keymap
-        processed-sub-keymaps (when (not-empty sub-keymaps)
-                                (map (fn [sub-keymap] (process-keymap-inner sub-keymap
-                                                                            ingress egress
-                                                                            id history))
-                                     sub-keymaps))]
-    (reduce #(merge-with comp %1 %2)
-            {key #(when (= parent-keymap-id
-                           ;; History is a list of keymaps which look like:
-                           ;;  [key id desc & sub-keymapsngs]
-                           ;; We want to get the keymap ID
-                           (-> @history first second))
-                    ;; Make sure only the initial keypress is valid
-                    ;; for a given navigation seq
-                    (let [awaited-id (r/atom nil)]
-                      ;; Emit keymap events
-                      (go
-                        (let [nav-id (gen-nav-seq)]
-                          ;; Start navigation seq
-                          (>! egress {:type :nav-forward-start
-                                      :id nav-id
-                                      :value [keymap :forward]})
-                          (reset! awaited-id nav-id)))
-                      ;; Capture keymap events
-                      (go
-                        (let [{:keys [type id] :as event} (<! ingress)]
-                          (print "Received ingress event:" event)
-                          (condp = type
-                            ;; Wait for the consumer to end the nagivation seq
-                            :nav-forward-end (do
-                                               ;; "Block" until the awaited ID arrives
-                                               (when (not= id @awaited-id)
-                                                 (throw (js/Error (str "Unexpected ingress event ID: " id))))
-                                               ;; This generates a list, not a vector
-                                               ;; So, history is "stack"
-                                               (swap! history conj keymap)
-                                               ;; Allow keypresses again
-                                               (reset! awaited-id nil))
-                            :nav-backward-start (swap! history pop)
-                            (throw (js/Error (str "Unexpected ingress event type: " type))))))))}
-            processed-sub-keymaps)))
-
-(defn process-keymap
+(def keymap
   "
-  Generates `blessed` keybindings given a `keymap`
-    * keymap - See (TODO: Link namespace when it's finalized).
-    * ingress - Channel for accepting keymap event requests.
-                Primarily for navigation (with dependence to async logic).
-  Returns:
-  ```
-  {:keymap  - `blessed` keybindings
-   :ingress - Channel for receiving keymap events.
-   :egress - Channel for emitting keymap events.
-   :within-keymap-history? - Fn with 1 arg: `keymap-d`.
-                             Returns `true` if `keymap-id` is within navigation history
-   :current-keymap? - Fn with with 1 arg: `keymap-d`.
-                      Returns `true` if `keymap-id` is the currently selected
-  ```
+  A keymap is comprised of:
+  [hotkey id desc & sub-keymaps]
   "
+  ["*" :root "comfykafka"
+   ["c" :connections/view "Connections"
+    ["c" :connection/connect "Connect"]
+    ["e" :connection/edit "Edit"
+     ["l" :conection-edit/url "URL"]]]
+   ["s" :settings/view "Settings"
+    ["e" :settings/edit "Edit"]
+    ["r" :settings/reset "Reset"]]])
+
+(defn process-events
+  "
+  Given a keymap, process events run against the keymap.
+  Returns a channel that streams the resulting states.
+
+  Kinds of events:
+  - forward navigation start
+    {:type :nav|->
+     :hotkey
+     :id}
+
+  - forward navigation end
+    {:type :nav->|
+    :hotkey
+    :id}
+
+  - backward navigation start
+    {:type :nav<-|}
+  "
+  [keymap events]
+  (let [states (atom [{:current keymap}])
+        states-channel (chan)
+        misc-state (atom {})]
+    (add-watch states :changes (fn [_ _ _ new-state]
+                                 (go (>! states-channel new-state))))
+    (go-loop []
+      (let [{:keys [type hotkey id]} (<! events)]
+        (condp = type
+          :nav|-> (if (nil? (:pending-nav-id @misc-state))
+                    (swap! misc-state assoc :pending-nav-id id)
+                    (print (str "Unexpected :nav|-> with ID: " id ". Ignoring...")))
+          :nav->| (let [current-keymap (-> @states
+                                           last
+                                           :current)
+                        [_ _ _ & sub-keymaps] current-keymap
+                        new-keymap (filter-first #(= (first %) hotkey)
+                                                 sub-keymaps)]
+                    (if (nil? new-keymap)
+                      (print (str "Unexpected hotkey:"  hotkey ". Ignoring..."))
+                      (do
+                        ;; This can happen due to race conditions
+                        ;;causing > 1 navigation sequences to be started
+                        (when (not= (:pending-nav-id @misc-state) id)
+                          (throw (js/Error (str "Unexpected :nav->| ID: " id))))
+                        (swap! states conj {:previous current-keymap
+                                            :current new-keymap})
+                        (swap! misc-state dissoc :pending-nav-id))))
+          :nav<-| (do (swap! states try-pop)
+                      (swap! misc-state dissoc :pending-nav-id))
+          (throw (js/Error (str "Unexpected event type: " type)))))
+      (recur))
+    states-channel))
+
+;; (def events
+;;   [{:type :nav|-> :hotkey "c" :id 1}
+;;    {:type :nav->| :hotkey "c" :id 1}
+;;    {:type :nav|-> :hotkey "e" :id 3}
+;;    {:type :nav|-> :hotkey "e" :id 4} ;; This should get ignored
+;;    {:type :nav->| :hotkey "e" :id 3}
+;;    {:type :nav<-|}])
+
+;; (def dbg_processed (process-events keymap events))
+
+(defn acc-hotkeys
+  "Accumulate all the hotkeys in the keymap. Duplicates are removed."
   [keymap]
-  (let [history (atom nil)
-        ingress (chan)
-        egress (chan)]
-    {:keymap (process-keymap-inner keymap ingress egress nil history)
-     :within-keymap-history? (fn [keymap-id]
-                               (->> @history
-                                    (map second)
-                                    (filter (partial = keymap-id))
-                                    empty? not))
-     :current-keymap? (fn [keymap-id]
-                        (->> @history
-                             first
-                             second
-                             (= keymap-id)))
-     :ingress ingress
-     :egress egress}))
+  (let [[hotkey _ _ & sub-keymaps] keymap]
+    (if (nil? sub-keymaps)
+      hotkey ; base-case
+      (concat [hotkey] (->> sub-keymaps
+                            (map acc-hotkeys)
+                            flatten
+                            dedupe)))))
 
-(defn process-keymap-events
-  [ingress egress after-egress]
-  (go-loop []
-    (let [{:keys [type id] :as event} (<! egress)]
-      (<! (timeout 1000))
-      (print "Received egress event:" {:type type :id id})
-      (after-egress event)
-      (condp = type
-        :nav-forward-start (>! ingress {:type :nav-forward-end
-                                        :id id})))
-    (recur)))
+;; (acc-hotkeys keymap)
+
+(defn gen-nav-seq-id [] (gensym "nav-seq-id:"))
+
+(defn make-keybindings
+  "
+  This is a dumb function that just emits hotkeys
+  to the events channel.
+  "
+  [keymap events]
+  (->> (acc-hotkeys keymap)
+       (map (fn [hotkey]
+              {[hotkey] #(go (let [id (gen-nav-seq-id)]
+                               (>! events {:type :nav|->
+                                           :hotkey hotkey
+                                           :id id})
+                               (<! (timeout 1000))
+                               (>! events {:type :nav->|
+                                           :hotkey hotkey
+                                           :id id})))}))
+       (apply merge)))
+
+;; (make-keybindings keymap (chan))
 
 (defn test-component
   [debug-ui]
   (r/with-let [state (r/atom {:show-keymap-helper? true})
-               {:keys [keymap
-                       within-keymap-history?
-                       current-keymap?
-                       ingress egress]} (process-keymap k/workflow-keymap)
-               go-back #(go (>! ingress {:type :nav-backward-start
-                                         :id (gen-nav-seq)}))
-               meta-keymap {["?"] #(swap! state update :show-keymap-helper? not)
-                            ["!"] #(swap! state update :show-debug-ui? not)
-                            ["g"] go-back}]
-    (process-keymap-events
-     ingress
-     egress (fn [{:keys [value]}]
-              (let [[keymap _direction] value]
-                (swap! state assoc :selected keymap))))
-    (with-keys @screen (merge meta-keymap keymap)
+               keymap-events (chan 1024)
+               keybindings (make-keybindings keymap keymap-events)
+               meta-keybindings {["?"] #(swap! state update :show-keymap-helper? not)
+                                 ["!"] #(swap! state update :show-debug-ui? not)
+                                 ["g"] #()}
+               keymap-states (process-events keymap keymap-events)]
+    ;; Visualizing the states via REPL
+    (go-loop []
+      (def dbg_state (<! keymap-states))
+      (recur))
+    (with-keys @screen (merge keybindings meta-keybindings)
       [:<>
-       [:box#main {:top 0
-                   :height "75%"
-                   :left 0
-                   :width "100%"}
-        ;; Box for listing/choosing a connection
-        (when (within-keymap-history? :connections/view)
-          [ccc/selector
-           {:top 0 :height "100%" :left 0 :width "10%"}
-           {:focused? #(current-keymap? :connections/view)}
-           @(rf/subscribe [::cfc/registry])
-           @(rf/subscribe [::cfc/selected-name])
-           (fn [connection-name]
-             (rf/dispatch [::cfc/select connection-name]))])
-        ;; Box for configuring a connection
-        (when (within-keymap-history? :connections/view)
-          [ccc/configurator
-           {:top 0 :height "100%" :left "10%" :width "30%"}
-           {:focused? #(current-keymap? :connection/edit)}
-           @(rf/subscribe [::cfc/selected])
-           {:url      (current-keymap? :connection/edit-url)
-            :username (current-keymap? :connection/edit-username)
-            :password (current-keymap? :connection/edit-password)}
-           {:on-submit {}
-            :on-cancel {:url go-back
-                        :username go-back
-                        :password go-back}}])]
+       ;; [:box#main {:top 0
+       ;;             :height "75%"
+       ;;             :left 0
+       ;;             :width "100%"}
+       ;;  ;; Box for listing/choosing a connection
+       ;;  (when (within-keymap-history? :connections/view)
+       ;;    [ccc/selector
+       ;;     {:top 0 :height "100%" :left 0 :width "10%"}
+       ;;     {:focused? #(current-keymap? :connections/view)}
+       ;;     @(rf/subscribe [::cfc/registry])
+       ;;     @(rf/subscribe [::cfc/selected-name])
+       ;;     (fn [connection-name]
+       ;;       (rf/dispatch [::cfc/select connection-name]))])
+       ;;  ;; Box for configuring a connection
+       ;;  (when (within-keymap-history? :connections/view)
+       ;;    [ccc/configurator
+       ;;     {:top 0 :height "100%" :left "10%" :width "30%"}
+       ;;     {:focused? #(current-keymap? :connection/edit)}
+       ;;     @(rf/subscribe [::cfc/selected])
+       ;;     {:url      (current-keymap? :connection/edit-url)
+       ;;      :username (current-keymap? :connection/edit-username)
+       ;;      :password (current-keymap? :connection/edit-password)}
+       ;;     {:on-submit {}
+       ;;      :on-cancel {:url go-back
+       ;;                  :username go-back
+       ;;                  :password go-back}}])]
        (when (:show-keymap-helper? @state)
          [:box {:top "75%"
                 :height "25%+1"
