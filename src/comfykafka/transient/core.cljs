@@ -139,7 +139,6 @@
                _ (go-loop []
                    (swap! state assoc :keymap-states (<! keymap-states))
                    (recur))]
-    (def dbg_states (:keymap-states @state))
     (with-keys @screen (merge keybindings meta-keybindings)
       [:<>
        ;; [:box#main {:top 0
