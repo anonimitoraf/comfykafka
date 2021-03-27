@@ -18,7 +18,7 @@
   A keymap is comprised of:
   [hotkey id desc & sub-keymaps]
   "
-  ["*" :root "comfykafka"
+  ["*" :root nil
    ["c" :connections/view "Connections"
     ["c" :connection/connect "Connect"]
     ["e" :connection/edit "Edit"
@@ -47,11 +47,13 @@
     {:type :nav<-|}
   "
   [keymap events]
-  (let [states (atom [{:current keymap}])
+  (let [states (atom [])
         states-channel (chan)
         misc-state (atom {})]
     (add-watch states :changes (fn [_ _ _ new-state]
                                  (go (>! states-channel new-state))))
+    ;; We emit the initial state after `add-watch`
+    (swap! states conj {:current keymap})
     (go-loop []
       (let [{:keys [type hotkey id]} (<! events)]
         (condp = type
@@ -117,7 +119,7 @@
                                (>! events {:type :nav|->
                                            :hotkey hotkey
                                            :id id})
-                               (<! (timeout 1000))
+                               (<! (timeout 250))
                                (>! events {:type :nav->|
                                            :hotkey hotkey
                                            :id id})))}))
@@ -133,11 +135,11 @@
                meta-keybindings {["?"] #(swap! state update :show-keymap-helper? not)
                                  ["!"] #(swap! state update :show-debug-ui? not)
                                  ["g"] #()}
-               keymap-states (process-events keymap keymap-events)]
-    ;; Visualizing the states via REPL
-    (go-loop []
-      (def dbg_state (<! keymap-states))
-      (recur))
+               keymap-states (process-events keymap keymap-events)
+               _ (go-loop []
+                   (swap! state assoc :keymap-states (<! keymap-states))
+                   (recur))]
+    (def dbg_states (:keymap-states @state))
     (with-keys @screen (merge keybindings meta-keybindings)
       [:<>
        ;; [:box#main {:top 0
@@ -173,8 +175,16 @@
                 :width "100%"
                 :border {:type :line}
                 :style {:border {:fg :cyan}}
-                :content (let [[_ _ desc & sub-keymaps] (:selected @state)]
-                           (str desc "\n" "\n"
+                :content (let [[_ _ _ & sub-keymaps] (-> @state :keymap-states
+                                                         last :current)
+                               breadcrumbs (->> (:keymap-states @state)
+                                                (reduce (fn [acc {:keys [current]}]
+                                                          (let [[_ _ desc] current]
+                                                            (conj acc desc)))
+                                                        [])
+                                                (filter (comp not nil?))
+                                                (join " > "))]
+                           (str breadcrumbs "\n" "\n"
                                 (->> sub-keymaps
                                     ;; TODO Utilize colored strings
                                      (map (fn [[key _ desc]] (str key " - " desc)))
