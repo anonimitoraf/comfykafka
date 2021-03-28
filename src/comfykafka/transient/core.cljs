@@ -82,16 +82,6 @@
       (recur))
     states-channel))
 
-;; (def events
-;;   [{:type :nav|-> :hotkey "c" :id 1}
-;;    {:type :nav->| :hotkey "c" :id 1}
-;;    {:type :nav|-> :hotkey "e" :id 3}
-;;    {:type :nav|-> :hotkey "e" :id 4} ;; This should get ignored
-;;    {:type :nav->| :hotkey "e" :id 3}
-;;    {:type :nav<-|}])
-
-;; (def dbg_processed (process-events keymap events))
-
 (defn acc-hotkeys
   "Accumulate all the hotkeys in the keymap. Duplicates are removed."
   [keymap]
@@ -125,70 +115,82 @@
                                            :id id})))}))
        (apply merge)))
 
-;; (make-keybindings keymap (chan))
+(defn within-keymap-states?
+  [states keymap-id]
+  (->> (map :current states)
+       (reduce (fn [acc [_ id _]] (conj acc id)) [])
+       (some #{keymap-id})))
+
+(defn current-keymap?
+  [states keymap-id]
+  (let [[_ id _] (-> states last :current)]
+    (=  id keymap-id)))
 
 (defn test-component
   [debug-ui]
   (r/with-let [state (r/atom {:show-keymap-helper? true})
                keymap-events (chan 1024)
                keybindings (make-keybindings keymap keymap-events)
-               meta-keybindings {["?"] #(swap! state update :show-keymap-helper? not)
-                                 ["!"] #(swap! state update :show-debug-ui? not)
-                                 ["g"] #()}
                keymap-states (process-events keymap keymap-events)
                _ (go-loop []
                    (swap! state assoc :keymap-states (<! keymap-states))
-                   (recur))]
+                   (recur))
+               go-back #(go (>! keymap-events {:type :nav<-|}))
+               meta-keybindings {["?"] #(swap! state update :show-keymap-helper? not)
+                                 ["!"] #(swap! state update :show-debug-ui? not)
+                                 ["g"] go-back}]
     (with-keys @screen (merge keybindings meta-keybindings)
-      [:<>
-       ;; [:box#main {:top 0
-       ;;             :height "75%"
-       ;;             :left 0
-       ;;             :width "100%"}
-       ;;  ;; Box for listing/choosing a connection
-       ;;  (when (within-keymap-history? :connections/view)
-       ;;    [ccc/selector
-       ;;     {:top 0 :height "100%" :left 0 :width "10%"}
-       ;;     {:focused? #(current-keymap? :connections/view)}
-       ;;     @(rf/subscribe [::cfc/registry])
-       ;;     @(rf/subscribe [::cfc/selected-name])
-       ;;     (fn [connection-name]
-       ;;       (rf/dispatch [::cfc/select connection-name]))])
-       ;;  ;; Box for configuring a connection
-       ;;  (when (within-keymap-history? :connections/view)
-       ;;    [ccc/configurator
-       ;;     {:top 0 :height "100%" :left "10%" :width "30%"}
-       ;;     {:focused? #(current-keymap? :connection/edit)}
-       ;;     @(rf/subscribe [::cfc/selected])
-       ;;     {:url      (current-keymap? :connection/edit-url)
-       ;;      :username (current-keymap? :connection/edit-username)
-       ;;      :password (current-keymap? :connection/edit-password)}
-       ;;     {:on-submit {}
-       ;;      :on-cancel {:url go-back
-       ;;                  :username go-back
-       ;;                  :password go-back}}])]
-       (when (:show-keymap-helper? @state)
-         [:box {:top "75%"
-                :height "25%+1"
-                :left 0
-                :width "100%"
-                :border {:type :line}
-                :style {:border {:fg :cyan}}
-                :content (let [[_ _ _ & sub-keymaps] (-> @state :keymap-states
-                                                         last :current)
-                               breadcrumbs (->> (:keymap-states @state)
-                                                (reduce (fn [acc {:keys [current]}]
-                                                          (let [[_ _ desc] current]
-                                                            (conj acc desc)))
-                                                        [])
-                                                (filter (comp not nil?))
-                                                (join " > "))]
-                           (str breadcrumbs "\n" "\n"
-                                (->> sub-keymaps
-                                    ;; TODO Utilize colored strings
-                                     (map (fn [[key _ desc]] (str key " - " desc)))
-                                     (join "\n"))))}
-          [:line {:top 1
-                  :orientation :horizontal
-                  :style {:fg :cyan}}]])
-       (when (:show-debug-ui? @state) debug-ui)])))
+      (let [within-keymap-states?* #(within-keymap-states? (:keymap-states @state) %)
+            current-keymap?* #(current-keymap? (:keymap-states @state) %)]
+        [:<>
+         [:box#main {:top 0
+                     :height "75%"
+                     :left 0
+                     :width "100%"}
+          ;; Box for listing/choosing a connection
+          (when (within-keymap-states?* :connections/view)
+            [ccc/selector
+             {:top 0 :height "100%" :left 0 :width "10%"}
+             {:focused? #(current-keymap?* :connections/view)}
+             @(rf/subscribe [::cfc/registry])
+             @(rf/subscribe [::cfc/selected-name])
+             (fn [connection-name]
+               (rf/dispatch [::cfc/select connection-name]))])
+          ;; Box for configuring a connection
+          (when (within-keymap-states?* :connections/view)
+            [ccc/configurator
+             {:top 0 :height "100%" :left "10%" :width "30%"}
+             {:focused? #(current-keymap?* :connection/edit)}
+             @(rf/subscribe [::cfc/selected])
+             {:url      (current-keymap?* :connection/edit-url)
+              :username (current-keymap?* :connection/edit-username)
+              :password (current-keymap?* :connection/edit-password)}
+             {:on-submit {}
+              :on-cancel {:url go-back
+                          :username go-back
+                          :password go-back}}])]
+         (when (:show-keymap-helper? @state)
+           [:box {:top "75%"
+                  :height "25%+1"
+                  :left 0
+                  :width "100%"
+                  :border {:type :line}
+                  :style {:border {:fg :cyan}}
+                  :content (let [[_ _ _ & sub-keymaps] (-> @state :keymap-states
+                                                           last :current)
+                                 breadcrumbs (->> (:keymap-states @state)
+                                                  (reduce (fn [acc {:keys [current]}]
+                                                            (let [[_ _ desc] current]
+                                                              (conj acc desc)))
+                                                          [])
+                                                  (filter (comp not nil?))
+                                                  (join " > "))]
+                             (str breadcrumbs "\n" "\n"
+                                  (->> sub-keymaps
+                                       ;; TODO Utilize colored strings
+                                       (map (fn [[key _ desc]] (str key " - " desc)))
+                                       (join "\n"))))}
+            [:line {:top 1
+                    :orientation :horizontal
+                    :style {:fg :cyan}}]])
+         (when (:show-debug-ui? @state) debug-ui)]))))

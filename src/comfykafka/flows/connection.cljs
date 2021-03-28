@@ -38,4 +38,4 @@
    [(rf/subscribe [::registry])
     (rf/subscribe [::selected-name])])
  (fn [[registry connection-name]]
-   (filter-first registry #(= (:connection/name %) connection-name))))
+   (filter-first #(= (:connection/name %) connection-name) registry)))
