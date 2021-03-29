@@ -16,3 +16,4 @@ profiles.clj
 /.lsp
 /.clj-kondo/*
 !/.clj-kondo/config.edn
+/.log

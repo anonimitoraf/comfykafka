@@ -60,8 +60,6 @@
                  (close! ch))))
     ch))
 
-(comment (upsert :connections {:id "QA"
-                               :url "kafka-qa.com"
-                               :username "bob"
-                               :password "builder"}))
+(comment (upsert :connections {:id "local-3"
+                               :url "localhost:9094"}))
 (comment (go (tap> (<! (get-all :connections)))))
