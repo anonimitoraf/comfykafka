@@ -1,15 +1,13 @@
 (ns comfykafka.wrappers.persistent-db
-  (:require [cljs.core.async
-             :refer [chan >! <!]
-             :refer-macros [go go-loop]]
+  (:require [clojure.walk :refer [keywordize-keys]]
+            [cljs.core.async :refer [chan >! <! close!] :refer-macros [go]]
             ["path" :as path]
             ["os" :as os]
-            ["nedb" :as Datastore]
-            [comfykafka.errors :refer [->AsyncError]]))
+            ["nedb" :as Datastore]))
 
 (defrecord DBError [msg details])
 
-(def dbs (atom {}))
+(def ^:private dbs (atom {}))
 
 (defn ^:private resolve-db
   [db-identifier]
@@ -26,7 +24,7 @@
   "Upserts `doc` into `db`.
   Returns a channel which emits either:
   * The upserted doc is successful
-  * An `->AsyncError` if not"
+  * An `->DBError` if not"
   [db doc]
   (let [ch (chan)]
     (.update (resolve-db db)
@@ -40,18 +38,30 @@
              (fn [err _affected-count affected-docs]
                (go (>! ch (if (nil? err)
                             (js->clj affected-docs)
-                            (->DBError (.-message err) (.-stack err)))))))
+                            (->DBError (.-message err) (.-stack err))))
+                   (close! ch))))
     ch))
 
 (defn get-all
   "Returns a channel which emits either:
   * All the docs in the `db`
-  * An `->AsyncError` if not"
+  * An `->DBError` if not"
   [db]
   (let [ch (chan)]
     (.find (resolve-db db) (clj->js {})
            (fn [err docs]
              (go (>! ch (if (nil? err)
-                          (map js->clj (js->clj docs))
-                          (->DBError (.-message err) (.-stack err)))))))
+                          (map (fn [doc]
+                                 (-> (keywordize-keys doc)
+                                     (merge {:id (doc "_id")})
+                                     (dissoc :_id)))
+                               (js->clj docs))
+                          (->DBError (.-message err) (.-stack err))))
+                 (close! ch))))
     ch))
+
+(comment (upsert :connections {:id "QA"
+                               :url "kafka-qa.com"
+                               :username "bob"
+                               :password "builder"}))
+(comment (go (tap> (<! (get-all :connections)))))

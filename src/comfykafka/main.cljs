@@ -1,18 +1,19 @@
 (ns comfykafka.main
   "Main application entrypoint. Defines root UI view, cli-options,
   arg parsing logic, and initialization routine"
-  (:require
-   [clojure.tools.cli :refer [parse-opts]]
-   [mount.core :refer [defstate] :as mount]
-   [re-frame.core :as rf]
-   [reagent.core :as r]
-   [comfykafka.core :refer [render screen]]
-   [comfykafka.demo.views :refer [demo]]
-   [comfykafka.events]
-   [comfykafka.flows.connection]
-   [comfykafka.resize :refer [size]]
-   [comfykafka.subs]
-   [comfykafka.views :as views]))
+  (:require [clojure.tools.cli :refer [parse-opts]]
+            [clojure.core.async :refer [<!] :refer-macros [go]]
+            [mount.core :refer [defstate] :as mount]
+            [re-frame.core :as rf]
+            [reagent.core :as r]
+            [comfykafka.core :refer [render screen]]
+            [comfykafka.demo.views :refer [demo]]
+            [comfykafka.events]
+            [comfykafka.resize :refer [size]]
+            [comfykafka.subs]
+            [comfykafka.views :as views]
+            [comfykafka.wrappers.persistent-db :as persistent-db]
+            [comfykafka.flows.connection :as connection-flow]))
 
 (defn ui
   "Root ui view.
@@ -46,6 +47,9 @@
   [view & {:keys [opts]}]
   (mount/start)
   (rf/dispatch-sync [:init (:options opts) (size @screen)])
+  (go
+    (rf/dispatch [::connection-flow/add
+                  (<! (persistent-db/get-all :connections))]))
   (-> (r/reactify-component view)
       (r/create-element #js {})
       (render @screen)))

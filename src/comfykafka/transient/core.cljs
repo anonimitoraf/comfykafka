@@ -8,8 +8,8 @@
             [comfykafka.utils :refer [filter-first try-pop]]
             [comfykafka.keys :refer [with-keys]]
             [comfykafka.core :refer [screen]]
-            [comfykafka.flows.connection :as cfc]
-            [comfykafka.components.connections :as ccc]
+            [comfykafka.flows.connection :as connection-flows]
+            [comfykafka.components.connections :as connection-components]
             [comfykafka.transient.keys :as k]
             [comfykafka.transient.actions]))
 
@@ -21,8 +21,17 @@
   ["*" :root nil
    ["c" :connections/view "Connections"
     ["c" :connection/connect "Connect"]
+
+    ["n" :connection/new "New"
+     ["l" :connection-edit/url "URL"]
+     ["u" :connection-edit/username "Username"]
+     ["p" :connection-edit/password "Password"]]
+
     ["e" :connection/edit "Edit"
-     ["l" :conection-edit/url "URL"]]]
+     ["l" :connection-edit/url "URL"]
+     ["u" :connection-edit/username "Username"]
+     ["p" :connection-edit/password "Password"]]]
+
    ["s" :settings/view "Settings"
     ["e" :settings/edit "Edit"]
     ["r" :settings/reset "Reset"]]])
@@ -149,22 +158,22 @@
                      :width "100%"}
           ;; Box for listing/choosing a connection
           (when (within-keymap-states?* :connections/view)
-            [ccc/selector
+            [connection-components/selector
              {:top 0 :height "100%" :left 0 :width "10%"}
              {:focused? #(current-keymap?* :connections/view)}
-             @(rf/subscribe [::cfc/registry])
-             @(rf/subscribe [::cfc/selected-name])
-             (fn [connection-name]
-               (rf/dispatch [::cfc/select connection-name]))])
+             @(rf/subscribe [::connection-flows/registry])
+             @(rf/subscribe [::connection-flows/selected-id])
+             (fn [connection-id]
+               (rf/dispatch [::connection-flows/select connection-id]))])
           ;; Box for configuring a connection
           (when (within-keymap-states?* :connections/view)
-            [ccc/configurator
+            [connection-components/configurator
              {:top 0 :height "100%" :left "10%" :width "30%"}
              {:focused? #(current-keymap?* :connection/edit)}
-             @(rf/subscribe [::cfc/selected])
-             {:url      (current-keymap?* :connection/edit-url)
-              :username (current-keymap?* :connection/edit-username)
-              :password (current-keymap?* :connection/edit-password)}
+             @(rf/subscribe [::connection-flows/selected])
+             {:url      (current-keymap?* :connection-edit/url)
+              :username (current-keymap?* :connection-edit/username)
+              :password (current-keymap?* :connection-edit/password)}
              {:on-submit {}
               :on-cancel {:url go-back
                           :username go-back

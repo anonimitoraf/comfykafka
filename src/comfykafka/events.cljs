@@ -14,10 +14,11 @@
    {:opts opts
     :router/view :home
     :terminal/size terminal-size
-    :connection/registry [{:connection/name "prod cluster"
-                           :connection/url "kafka-cluster.prod"}
-                          {:connection/name "qa cluster"
-                           :connection/url "kafka-cluster.qa"}]}))
+    ;; :connection/registry [{:id "prod cluster"
+    ;;                        :connection/url "kafka-cluster.prod"}
+    ;;                       {:id "qa cluster"
+    ;;                        :connection/url "kafka-cluster.qa"}]
+    }))
 
 (rf/reg-event-db
  :update
