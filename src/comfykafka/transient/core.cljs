@@ -10,8 +10,34 @@
             [comfykafka.core :refer [screen]]
             [comfykafka.flows.connection :as connection-flows]
             [comfykafka.components.connections :as connection-components]
+            [comfykafka.utils :refer [<sub event>]]
+            [comfykafka.components.generic :refer [list-box]]
             [comfykafka.transient.keys :as k]
             [comfykafka.transient.actions]))
+
+(def topics-keymap
+  ["t" :topics/view "Topics"
+   ["i" :topic/inspect "Inspect"]])
+
+(def connections-keymap
+  ["c" :connections/view "Connections"
+   ["c" :connection/connect "Connect"
+    topics-keymap]
+
+   ["n" :connection/new "New"
+    ["l" :connection-edit/url "URL"]
+    ["u" :connection-edit/username "Username"]
+    ["p" :connection-edit/password "Password"]]
+
+   ["e" :connection/edit "Edit"
+    ["l" :connection-edit/url "URL"]
+    ["u" :connection-edit/username "Username"]
+    ["p" :connection-edit/password "Password"]]])
+
+(def settings-keymap
+  ["s" :settings/view "Settings"
+   ["e" :settings/edit "Edit"]
+   ["r" :settings/reset "Reset"]])
 
 (def keymap
   "
@@ -19,22 +45,8 @@
   [hotkey id desc & sub-keymaps]
   "
   ["*" :root nil
-   ["c" :connections/view "Connections"
-    ["c" :connection/connect "Connect"]
-
-    ["n" :connection/new "New"
-     ["l" :connection-edit/url "URL"]
-     ["u" :connection-edit/username "Username"]
-     ["p" :connection-edit/password "Password"]]
-
-    ["e" :connection/edit "Edit"
-     ["l" :connection-edit/url "URL"]
-     ["u" :connection-edit/username "Username"]
-     ["p" :connection-edit/password "Password"]]]
-
-   ["s" :settings/view "Settings"
-    ["e" :settings/edit "Edit"]
-    ["r" :settings/reset "Reset"]]])
+   connections-keymap
+   settings-keymap])
 
 (defn process-events
   "
@@ -158,13 +170,16 @@
                      :width "100%"}
           ;; Box for listing/choosing a connection
           (when (within-keymap-states?* :connections/view)
-            [connection-components/selector
-             {:top 0 :height "100%" :left 0 :width "10%"}
-             {:focused? #(current-keymap?* :connections/view)}
-             @(rf/subscribe [::connection-flows/registry])
-             @(rf/subscribe [::connection-flows/selected-id])
-             (fn [connection-id]
-               (rf/dispatch [::connection-flows/select connection-id]))])
+            (let [choices (->> (<sub [::connection-flows/registry])
+                               (map (fn [c] {:label (c :alias)
+                                             :value (c :id)})))
+                  selected (<sub [::connection-flows/selected-id])
+                  do-select #(rf/dispatch [::connection-flows/select %])
+                  position {:top 0 :height "100%" :left 0 :width "10%"}
+                  focused? #(current-keymap?* :connections/view)]
+              [list-box choices selected do-select {:focused? focused?
+                                                    :position position
+                                                    :label "Connections"}]))
           ;; Box for configuring a connection
           (when (within-keymap-states?* :connections/view)
             [connection-components/configurator

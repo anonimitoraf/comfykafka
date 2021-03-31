@@ -1,5 +1,8 @@
 (ns comfykafka.components.generic
   (:require [reagent.core :as r]
+            [comfykafka.keys :refer [with-keys]]
+            [comfykafka.core :refer [screen]]
+            [comfykafka.utils :refer [filter-first]]
             [comfykafka.theme :as theme])
   (:require-macros [comfykafka.components.generic]))
 
@@ -48,6 +51,47 @@
          :style {:border {:fg :red}}
          :label " SOME PLAIN BOX "
          :content content}])
+
+(defn list-box
+  "
+  Args:
+  * choices   - list of {:label :value}
+  * selected  - currently selected value
+  * on-select - void fn with 1 arg: value of current choice
+  * opts
+   * focused?
+   * position
+   * label
+  "
+  [choices selected on-select {:keys [focused? position label]}]
+  (r/with-let [selected-index (r/atom nil)
+               do-select (fn [direction]
+                           (swap! selected-index
+                                  (fn [i] (mod ((condp = direction
+                                                  :up dec
+                                                  :down inc)
+                                                (or i -1))
+                                               (count choices))))
+                           (on-select (-> choices
+                                          (nth @selected-index)
+                                          :value)))]
+    (with-keys @screen {["up" "k"] #(when (focused?) (do-select :up))
+                        ["down" "j"] #(when (focused?) (do-select :down))}
+      [:box (merge {:label (str " " label " ")
+                    :border {:type :line}
+                    :style {:border {:fg (if (focused?)
+                                           theme/default-container-border-focused
+                                           theme/default-container-border)}}}
+
+                   position)
+       (for [[idx {:keys [value label]}] (map-indexed vector choices)]
+         [:box {:key idx
+                :top idx
+                :style (if (= value selected)
+                         theme/list-item-selected
+                         theme/list-item-unselected)
+                :height 1
+                :content label}])])))
 
 (defn with-color
   "Generates a colored string via blessed tags"

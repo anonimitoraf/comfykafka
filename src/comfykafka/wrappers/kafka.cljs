@@ -45,4 +45,5 @@
                                  make-kafka-client
                                  make-admin))]
                (tap> (<! (list-topics admin)))
-               (tap> (<! (create-topic admin "test-topic-1"))))))
+               ;; (tap> (<! (create-topic admin "test-topic-1")))
+               )))

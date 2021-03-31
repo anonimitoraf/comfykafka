@@ -17,7 +17,8 @@
   * config - Connection configuration. For creation, expected to be nil
   Example:
   ```
-  {:id      \"Production Cluster\"
+  {:id        123
+   :alias     \"Production Cluster\"
    :url       \"my-kafka.com\"
    :username  \"abc\"
    :password  \"123\"}
@@ -25,7 +26,7 @@
   * prompts - Struct that decides which prompt (if any) is shown.
   Example:
   ```
-  {:id        false
+  {:alias     false
    :url       true
    :username  false
    :password  false}
@@ -43,7 +44,7 @@
      [:text "No connection selected"]
      [:<>
       (seq->components (map (fn [[label key]] [label (config key)])
-                            [["Alias" :id]
+                            [["Alias" :alias]
                              ["URL" :url]
                              ["Username" :username]
                              ["Password" :password]])
@@ -61,53 +62,3 @@
                                                        :initial-value (get config k)
                                                        :on-submit (get-in prompt-cbs [:on-submit k])
                                                        :on-cancel (get-in prompt-cbs [:on-cancel k])}])))])])
-
-(defn selector
-  "
-  * connections - a list of connection structs. Example:
-  ```
-  {:id  'prod cluster'
-   :url 'kafka-cluster.com'
-   :username'abc'
-   :password '123'}
-  ```
-  * opts - Example:
-  ```
-  {focused? - Fn that decides whether this component is focused.
-              Primarily for theming and hotkeys}
-  ```
-  * on-move - callback for navigation, 1 arg: which is the connection name
-  "
-  [position
-   {:keys [focused?] :as opts}
-   connections
-   selected-id
-   on-move]
-  (r/with-let [selected-index (r/atom nil)
-               do-move (fn [direction]
-                         (swap! selected-index
-                                (fn [i] (mod ((condp = direction
-                                                :up dec
-                                                :down inc)
-                                              (or i -1))
-                                             (count connections))))
-                         (on-move (-> connections
-                                      (nth @selected-index)
-                                      :id)))]
-    (with-keys @screen {["up" "k"] #(when (focused?) (do-move :up))
-                        ["down" "j"] #(when (focused?) (do-move :down))}
-      [:box (merge {:label " Connections "
-                    :border {:type :line}
-                    :style {:border {:fg (if (focused?)
-                                           theme/default-container-border-focused
-                                           theme/default-container-border)}}}
-
-                   position)
-       (for [[idx {:keys [id]}] (map-indexed vector connections)]
-         [:box {:key idx
-                :top idx
-                :style (if (= id selected-id)
-                         theme/list-item-selected
-                         theme/list-item-unselected)
-                :height 1
-                :content id}])])))

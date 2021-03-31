@@ -5,7 +5,6 @@
 (rf/reg-event-db
  ::add
  (fn [db [_ connections]]
-   (tap> connections)
    (update-in db [:connection :registry] concat connections)))
 
 (rf/reg-event-db
