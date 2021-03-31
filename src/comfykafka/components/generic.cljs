@@ -1,9 +1,8 @@
 (ns comfykafka.components.generic
-  (:require [reagent.core :as r]
+  (:require [comfykafka.core :refer [screen]]
             [comfykafka.keys :refer [with-keys]]
-            [comfykafka.core :refer [screen]]
-            [comfykafka.utils :refer [filter-first]]
-            [comfykafka.theme :as theme])
+            [comfykafka.theme :as theme]
+            [reagent.core :as r])
   (:require-macros [comfykafka.components.generic]))
 
 (defn with-color

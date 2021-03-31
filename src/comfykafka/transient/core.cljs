@@ -1,19 +1,17 @@
 (ns comfykafka.transient.core
-  (:require [clojure.string :refer [join]]
-            [cljs.core.async
+  (:require [cljs.core.async
              :refer [chan >! <! timeout]
              :refer-macros [go go-loop]]
-            [reagent.core :as r]
-            [re-frame.core :as rf]
-            [comfykafka.utils :refer [filter-first try-pop]]
-            [comfykafka.keys :refer [with-keys]]
+            [clojure.string :refer [join]]
+            [comfykafka.components.connections :as connection-components]
+            [comfykafka.components.generic :refer [list-box]]
             [comfykafka.core :refer [screen]]
             [comfykafka.flows.connection :as connection-flows]
-            [comfykafka.components.connections :as connection-components]
-            [comfykafka.utils :refer [<sub event>]]
-            [comfykafka.components.generic :refer [list-box]]
-            [comfykafka.transient.keys :as k]
-            [comfykafka.transient.actions]))
+            [comfykafka.keys :refer [with-keys]]
+            [comfykafka.transient.actions]
+            [comfykafka.utils :refer [filter-first try-pop <sub]]
+            [re-frame.core :as rf]
+            [reagent.core :as r]))
 
 (def topics-keymap
   ["t" :topics/view "Topics"

@@ -1,9 +1,5 @@
 (ns comfykafka.components.connections
-  (:require [reagent.core :as r]
-            [comfykafka.keys :refer [with-keys]]
-            [comfykafka.core :refer [screen]]
-            [comfykafka.theme :as theme]
-            [comfykafka.components.generic :refer [box
+  (:require [comfykafka.components.generic :refer [box
                                                    single-field-prompt
                                                    seq->components]]))
 
