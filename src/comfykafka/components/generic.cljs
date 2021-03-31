@@ -6,6 +6,11 @@
             [comfykafka.theme :as theme])
   (:require-macros [comfykafka.components.generic]))
 
+(defn with-color
+  "Generates a colored string via blessed tags"
+  [color text]
+  (str "{" (name color) "-fg}" text))
+
 (defn single-field-prompt
   [{:keys [heading
            initial-value
@@ -77,8 +82,12 @@
                                           :value)))]
     (with-keys @screen {["up" "k"] #(when (focused?) (do-select :up))
                         ["down" "j"] #(when (focused?) (do-select :down))}
-      [:box (merge {:label (str " " label " ")
+      [:box (merge {:label (str " " (with-color (if (focused?)
+                                                  theme/default-text-focused
+                                                  theme/default-text)
+                                      label) " ")
                     :border {:type :line}
+                    :tags true
                     :style {:border {:fg (if (focused?)
                                            theme/default-container-border-focused
                                            theme/default-container-border)}}}
@@ -92,8 +101,3 @@
                          theme/list-item-unselected)
                 :height 1
                 :content label}])])))
-
-(defn with-color
-  "Generates a colored string via blessed tags"
-  [color text]
-  (str "{" (name color) "-fg}" text))
