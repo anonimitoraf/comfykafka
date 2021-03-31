@@ -9,7 +9,7 @@
             [comfykafka.flows.connection :as connection-flows]
             [comfykafka.keys :refer [with-keys]]
             [comfykafka.transient.actions]
-            [comfykafka.utils :refer [filter-first try-pop <sub]]
+            [comfykafka.utils :refer [event> filter-first try-pop <sub]]
             [re-frame.core :as rf]
             [reagent.core :as r]))
 
@@ -172,25 +172,27 @@
                                (map (fn [c] {:label (c :alias)
                                              :value (c :id)})))
                   selected (<sub [::connection-flows/selected-id])
-                  do-select #(rf/dispatch [::connection-flows/select %])
-                  position {:top 0 :height "100%" :left 0 :width "10%"}
+                  do-select #(event> [::connection-flows/select %])
+                  position {:top 0 :height "40%" :left 0 :width "20%"}
                   focused? #(current-keymap?* :connections/view)]
               [list-box choices selected do-select {:focused? focused?
                                                     :position position
                                                     :label "Connections"}]))
           ;; Box for configuring a connection
           (when (within-keymap-states?* :connections/view)
-            [connection-components/configurator
-             {:top 0 :height "100%" :left "10%" :width "30%"}
-             {:focused? #(current-keymap?* :connection/edit)}
-             @(rf/subscribe [::connection-flows/selected])
-             {:url      (current-keymap?* :connection-edit/url)
-              :username (current-keymap?* :connection-edit/username)
-              :password (current-keymap?* :connection-edit/password)}
-             {:on-submit {}
-              :on-cancel {:url go-back
-                          :username go-back
-                          :password go-back}}])]
+            (let [selected (<sub [::connection-flows/selected])]
+              [connection-components/configurator
+               {:top "40%" :height "60%" :left 0 :width "20%"}
+               {:focused? #(current-keymap?* :connection/edit)
+                :label (:alias selected)}
+               selected
+               {:url      (current-keymap?* :connection-edit/url)
+                :username (current-keymap?* :connection-edit/username)
+                :password (current-keymap?* :connection-edit/password)}
+               {:on-submit {}
+                :on-cancel {:url go-back
+                            :username go-back
+                            :password go-back}}]))]
          (when (:show-keymap-helper? @state)
            [:box {:top "75%"
                   :height "25%+1"

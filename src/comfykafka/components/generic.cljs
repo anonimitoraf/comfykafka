@@ -10,6 +10,15 @@
   [color text]
   (str "{" (name color) "-fg}" text))
 
+(defn ^:private make-label
+  [label focused?]
+  (and label
+       (str " " (with-color (if (focused?)
+                              theme/default-text-focused
+                              theme/default-text)
+                  label)
+            " ")))
+
 (defn single-field-prompt
   [{:keys [heading
            initial-value
@@ -39,9 +48,10 @@
                 :style {:border {:fg (if (focused?)
                                        theme/default-container-border-focused
                                        theme/default-container-border)}}
-                :focused (focused?)}
+                :focused (focused?)
+                :tags true}
                position
-               (when label {:label label}))
+               (when label {:label (make-label label focused?)}))
    (map #(with-meta % {:key (gensym "key-")}) content)])
 
 (defn plain-box
@@ -81,10 +91,7 @@
                                           :value)))]
     (with-keys @screen {["up" "k"] #(when (focused?) (do-select :up))
                         ["down" "j"] #(when (focused?) (do-select :down))}
-      [:box (merge {:label (str " " (with-color (if (focused?)
-                                                  theme/default-text-focused
-                                                  theme/default-text)
-                                      label) " ")
+      [:box (merge {:label (make-label label focused?)
                     :border {:type :line}
                     :tags true
                     :style {:border {:fg (if (focused?)

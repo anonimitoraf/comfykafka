@@ -34,16 +34,14 @@
                ... }}
   ```
   "
-  [position {:keys [focused?] :as opts} config prompts prompt-cbs]
-  [box nil position opts
+  [position {:keys [focused? label] :as opts} config prompts prompt-cbs]
+  [box label position opts
    (if (nil? config)
      [:text "No connection selected"]
      [:<>
-      (seq->components (map (fn [[label key]] [label (config key)])
-                            [["Alias" :alias]
-                             ["URL" :url]
-                             ["Username" :username]
-                             ["Password" :password]])
+      (seq->components (map (fn [[label key]] [label (config key)]) [["URL" :url]
+                                                                     ["Username" :username]
+                                                                     ["Password" :password]])
                        (fn [idx [label value]] ; e.g. k = :url, v = "kafka-cluster.com"
                          [:box {:top (* idx 2) ; Essentially gives a </br>
                                 :width "80%"
