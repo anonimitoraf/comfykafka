@@ -60,6 +60,13 @@
                  (close! ch))))
     ch))
 
-(comment (upsert :connections {:id "local-3"
+(comment (upsert :connections {:id 0
+                               :alias "server at 9092"
+                               :url "localhost:9092"}))
+(comment (upsert :connections {:id 1
+                               :alias "server at 9093"
+                               :url "localhost:9093"}))
+(comment (upsert :connections {:id 2
+                               :alias "server at 9094"
                                :url "localhost:9094"}))
 (comment (go (tap> (<! (get-all :connections)))))
