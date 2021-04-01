@@ -7,6 +7,7 @@
             [comfykafka.components.generic :refer [list-box]]
             [comfykafka.core :refer [screen]]
             [comfykafka.flows.connection :as connection-flows]
+            [comfykafka.flows.keymap :as keymap-flows]
             [comfykafka.keys :refer [with-keys]]
             [comfykafka.transient.actions]
             [comfykafka.utils :refer [event> filter-first try-pop <sub]]
@@ -128,10 +129,11 @@
                                (>! events {:type :nav|->
                                            :hotkey hotkey
                                            :id id})
-                               (<! (timeout 250))
-                               (>! events {:type :nav->|
-                                           :hotkey hotkey
-                                           :id id})))}))
+                               ;; FIXME Use key-id instead of hotkey
+                               (event> [::keymap-flows/process-key hotkey
+                                        (fn [] (go (>! events {:type :nav->|
+                                                               :hotkey hotkey
+                                                               :id id})))])))}))
        (apply merge)))
 
 (defn within-keymap-states?
