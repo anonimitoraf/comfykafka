@@ -5,12 +5,12 @@
             [re-frame.core :as rf]))
 
 (rf/reg-event-db
- ::init-keymap-events-channel
+ ::init-events-ch
  (fn [db _]
    (assoc-in db [:keymap :events/channel] (chan 1024))))
 
 (rf/reg-sub
- ::keymap-events-channel
+ ::events-ch
  (fn [db _]
    (get-in db [:keymap :events/channel])))
 

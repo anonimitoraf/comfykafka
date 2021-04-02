@@ -48,7 +48,7 @@
   [view & {:keys [opts]}]
   (mount/start)
   (rf/dispatch-sync [:init (:options opts) (size @screen)])
-  (rf/dispatch-sync [::keymap-flow/init-keymap-events-channel])
+  (rf/dispatch-sync [::keymap-flow/init-events-ch])
   (go
     (rf/dispatch [::connection-flow/add
                   (<! (persistent-db/get-all :connections))]))

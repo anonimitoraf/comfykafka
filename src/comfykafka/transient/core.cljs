@@ -149,7 +149,7 @@
 (defn test-component
   [debug-ui]
   (r/with-let [state (r/atom {:show-keymap-helper? true})
-               keymap-events (<sub [::keymap-flows/keymap-events-channel])
+               keymap-events (<sub [::keymap-flows/events-ch])
                keybindings (make-keybindings keymap keymap-events)
                keymap-states (process-events keymap keymap-events)
                _ (go-loop []
