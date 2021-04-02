@@ -130,10 +130,9 @@
                                            :hotkey hotkey
                                            :id id})
                                ;; FIXME Use key-id instead of hotkey
-                               (event> [::keymap-flows/process-key hotkey
-                                        (fn [] (go (>! events {:type :nav->|
-                                                               :hotkey hotkey
-                                                               :id id})))])))}))
+                               (event> [::keymap-flows/process-key hotkey {:type :nav->|
+                                                                           :hotkey hotkey
+                                                                           :id id}])))}))
        (apply merge)))
 
 (defn within-keymap-states?
@@ -150,7 +149,7 @@
 (defn test-component
   [debug-ui]
   (r/with-let [state (r/atom {:show-keymap-helper? true})
-               keymap-events (chan 1024)
+               keymap-events (<sub [::keymap-flows/keymap-events-channel])
                keybindings (make-keybindings keymap keymap-events)
                keymap-states (process-events keymap keymap-events)
                _ (go-loop []
@@ -170,6 +169,7 @@
                      :width "100%"}
           ;; Box for listing/choosing a connection
           (when (within-keymap-states?* :connections/view)
+            ;; TODO Move these into r/with-let
             (let [choices (->> (<sub [::connection-flows/registry])
                                (map (fn [c] {:label (c :alias)
                                              :value (c :id)})))

@@ -13,7 +13,8 @@
             [comfykafka.subs]
             [comfykafka.views :as views]
             [comfykafka.wrappers.persistent-db :as persistent-db]
-            [comfykafka.flows.connection :as connection-flow]))
+            [comfykafka.flows.connection :as connection-flow]
+            [comfykafka.flows.keymap :as keymap-flow]))
 
 (defn ui
   "Root ui view.
@@ -47,6 +48,7 @@
   [view & {:keys [opts]}]
   (mount/start)
   (rf/dispatch-sync [:init (:options opts) (size @screen)])
+  (rf/dispatch-sync [::keymap-flow/init-keymap-events-channel])
   (go
     (rf/dispatch [::connection-flow/add
                   (<! (persistent-db/get-all :connections))]))
