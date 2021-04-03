@@ -1,42 +1,17 @@
 (ns comfykafka.transient.core
-  (:require [cljs.core.async
-             :refer [chan >! <!]
-             :refer-macros [go go-loop]]
-            [clojure.string :refer [join]]
-            [comfykafka.components.connections :as connection-components]
-            [comfykafka.components.generic :refer [list-box]]
-            [comfykafka.core :refer [screen]]
-            [comfykafka.flows.connection :as connection-flows]
-            [comfykafka.flows.keymap :as keymap-flows]
-            [comfykafka.flows.topic :as topic-flows]
-            [comfykafka.keys :refer [with-keys]]
-            [comfykafka.transient.actions]
-            [comfykafka.utils :refer [event> filter-first try-pop <sub]]
-            [reagent.core :as r]))
-
-(def topics-keymap
-  ["t" :topics/view "Topics"
-   ["i" :topic/inspect "Inspect"]])
-
-(def connections-keymap
-  ["c" :connections/view "Connections"
-   ["c" :connection/connect "Connect"
-    topics-keymap]
-
-   ["n" :connection/new "New"
-    ["l" :connection-edit/url "URL"]
-    ["u" :connection-edit/username "Username"]
-    ["p" :connection-edit/password "Password"]]
-
-   ["e" :connection/edit "Edit"
-    ["l" :connection-edit/url "URL"]
-    ["u" :connection-edit/username "Username"]
-    ["p" :connection-edit/password "Password"]]])
-
-(def settings-keymap
-  ["s" :settings/view "Settings"
-   ["e" :settings/edit "Edit"]
-   ["r" :settings/reset "Reset"]])
+  (:require
+   [cljs.core.async :refer [chan >! <!] :refer-macros [go go-loop]]
+   [clojure.string :refer [join]]
+   [comfykafka.components.connections :as connection-components]
+   [comfykafka.components.generic :refer [list-box]]
+   [comfykafka.core :refer [screen]]
+   [comfykafka.flows.connection :as connection-flows]
+   [comfykafka.flows.keymap :as keymap-flows]
+   [comfykafka.flows.topic :as topic-flows]
+   [comfykafka.keys :refer [with-keys]]
+   [comfykafka.transient.keys :refer [connections-keymap settings-keymap]]
+   [comfykafka.utils :refer [event> filter-first try-pop <sub]]
+   [reagent.core :as r]))
 
 (def keymap
   "
