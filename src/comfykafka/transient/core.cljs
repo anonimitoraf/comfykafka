@@ -8,6 +8,7 @@
             [comfykafka.core :refer [screen]]
             [comfykafka.flows.connection :as connection-flows]
             [comfykafka.flows.keymap :as keymap-flows]
+            [comfykafka.flows.topic :as topic-flows]
             [comfykafka.keys :refer [with-keys]]
             [comfykafka.transient.actions]
             [comfykafka.utils :refer [event> filter-first try-pop <sub]]
@@ -198,7 +199,18 @@
                {:on-submit {}
                 :on-cancel {:url go-back
                             :username go-back
-                            :password go-back}}]))]
+                            :password go-back}}]))
+          ;; Box for listing/choosing a topic
+          (when (within-keymap-states?* :topics/view)
+            (let [choices (->> (<sub [::topic-flows/registry])
+                               (map (fn [t] {:label t :value t})))
+                  selected (<sub [::topic-flows/selected-name])
+                  do-select #(event> [::topic-flows/select %])
+                  position {:top 0 :height "100%" :left "20%" :width "20%"}
+                  focused? #(current-keymap?* :topics/view)]
+              [list-box choices selected do-select {:focused? focused?
+                                                    :position position
+                                                    :label "Topics"}]))]
          (when (:show-keymap-helper? @state)
            [:box {:top "75%"
                   :height "25%+1"

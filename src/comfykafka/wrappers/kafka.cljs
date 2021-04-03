@@ -5,7 +5,7 @@
             [clojure.core.async.interop :refer-macros [<p!]]
             ["kafkajs" :refer [Kafka]]))
 
-(defn make-kafka-client
+(defn make-client
   [broker-urls]
   (new Kafka (clj->js {:brokers broker-urls})))
 
@@ -15,7 +15,7 @@
   (list-topics [this] "List Kafka Topics")
   (create-topic [this name] "Create a Kafka Topic"))
 
-(defrecord Admin [^js impl]
+(defrecord ^:private Admin [^js impl]
   IAdmin
   (list-topics [_]
     (let [ch (chan)]
@@ -36,14 +36,13 @@
   (let [ch (chan)
         admin (.admin client)]
     (go (<p! (.connect admin))
-        (>! ch (Admin. admin))
+        (>! ch (->Admin admin))
         (close! ch))
     ch))
 
 (comment (go (let [_ (tap> "before make-admin")
                    admin (<! (-> ["localhost:9092"]
-                                 make-kafka-client
+                                 make-client
                                  make-admin))]
                (tap> (<! (list-topics admin)))
-               ;; (tap> (<! (create-topic admin "test-topic-1")))
-               )))
+               (tap> (<! (create-topic admin "test-topic-3"))))))
