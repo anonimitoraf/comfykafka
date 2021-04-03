@@ -1,6 +1,6 @@
 (ns comfykafka.transient.core
   (:require [cljs.core.async
-             :refer [chan >! <! timeout]
+             :refer [chan >! <!]
              :refer-macros [go go-loop]]
             [clojure.string :refer [join]]
             [comfykafka.components.connections :as connection-components]
@@ -11,7 +11,6 @@
             [comfykafka.keys :refer [with-keys]]
             [comfykafka.transient.actions]
             [comfykafka.utils :refer [event> filter-first try-pop <sub]]
-            [re-frame.core :as rf]
             [reagent.core :as r]))
 
 (def topics-keymap
@@ -53,18 +52,22 @@
   Returns a channel that streams the resulting states.
 
   Kinds of events:
-  - forward navigation start
-    {:type :nav|->
+  * forward navigation start
+    {:type - :nav|->
      :hotkey
-     :id}
+     :id
+     :hook - (optional) fn of type: key-id => void}
 
-  - forward navigation end
+  * forward navigation end
     {:type :nav->|
     :hotkey
     :id}
 
-  - backward navigation start
+  * backward navigation start
     {:type :nav<-|}
+
+  Other args:
+  * on-nav|-> - Falled (1 arg: key-id) when a `nav|->` event is received.
   "
   [keymap events]
   (let [states (atom [])
@@ -75,32 +78,34 @@
     ;; We emit the initial state after `add-watch`
     (swap! states conj {:current keymap})
     (go-loop []
-      (let [{:keys [type hotkey id]} (<! events)]
+      (let [{:keys [type hotkey id hook]} (<! events)
+            current-keymap (-> @states last :current)
+            [_ _ _ & sub-keymaps] current-keymap
+            new-keymap (filter-first #(= (first %) hotkey)
+                                     sub-keymaps)
+            [_ new-key-id _ & _] new-keymap]
         (condp = type
           :nav|-> (if (nil? (:pending-nav-id @misc-state))
-                    (swap! misc-state assoc :pending-nav-id id)
+                    (do (swap! misc-state assoc :pending-nav-id id)
+                        (and hook (hook new-key-id)))
                     (print (str "Unexpected :nav|-> with ID: " id ". Ignoring...")))
-          :nav->| (let [current-keymap (-> @states
-                                           last
-                                           :current)
-                        [_ _ _ & sub-keymaps] current-keymap
-                        new-keymap (filter-first #(= (first %) hotkey)
-                                                 sub-keymaps)]
-                    (if (nil? new-keymap)
-                      (print (str "Unexpected hotkey:"  hotkey ". Ignoring..."))
-                      (do
-                        ;; This can happen due to race conditions
-                        ;;causing > 1 navigation sequences to be started
-                        (when (not= (:pending-nav-id @misc-state) id)
-                          (throw (js/Error (str "Unexpected :nav->| ID: " id))))
-                        (swap! states conj {:previous current-keymap
-                                            :current new-keymap})
-                        (swap! misc-state dissoc :pending-nav-id))))
+          :nav->| (if (nil? new-keymap)
+                    (print (str "Unexpected hotkey:"  hotkey ". Ignoring..."))
+                    (do
+                      ;; This can happen due to race conditions
+                      ;;causing > 1 navigation sequences to be started
+                      (when (not= (:pending-nav-id @misc-state) id)
+                        (throw (js/Error (str "Unexpected :nav->| ID: " id))))
+                      (swap! states conj {:previous current-keymap
+                                          :current new-keymap})
+                      (swap! misc-state dissoc :pending-nav-id)))
           :nav<-| (do (swap! states try-pop)
                       (swap! misc-state dissoc :pending-nav-id))
           (throw (js/Error (str "Unexpected event type: " type)))))
       (recur))
     states-channel))
+
+(defn gen-nav-seq-id [] (gensym "nav-seq-id:"))
 
 (defn acc-hotkeys
   "Accumulate all the hotkeys in the keymap. Duplicates are removed."
@@ -113,10 +118,6 @@
                             flatten
                             dedupe)))))
 
-;; (acc-hotkeys keymap)
-
-(defn gen-nav-seq-id [] (gensym "nav-seq-id:"))
-
 (defn make-keybindings
   "
   This is a dumb function that just emits hotkeys
@@ -126,13 +127,16 @@
   (->> (acc-hotkeys keymap)
        (map (fn [hotkey]
               {[hotkey] #(go (let [id (gen-nav-seq-id)]
-                               (>! events {:type :nav|->
-                                           :hotkey hotkey
-                                           :id id})
-                               ;; FIXME Use key-id instead of hotkey
-                               (event> [::keymap-flows/process-key hotkey {:type :nav->|
-                                                                           :hotkey hotkey
-                                                                           :id id}])))}))
+                               (>! events
+                                   {:type :nav|->
+                                    :hotkey hotkey
+                                    :id id
+                                    :hook (fn [key-id]
+                                            (tap> (str "Pressed: " key-id))
+                                            (event> [::keymap-flows/process-key key-id
+                                                     {:type :nav->|
+                                                      :hotkey hotkey
+                                                      :id id}]))})))}))
        (apply merge)))
 
 (defn within-keymap-states?
@@ -150,8 +154,8 @@
   [debug-ui]
   (r/with-let [state (r/atom {:show-keymap-helper? true})
                keymap-events (<sub [::keymap-flows/events-ch])
-               keybindings (make-keybindings keymap keymap-events)
                keymap-states (process-events keymap keymap-events)
+               keybindings (make-keybindings keymap keymap-events)
                _ (go-loop []
                    (swap! state assoc :keymap-states (<! keymap-states))
                    (recur))
